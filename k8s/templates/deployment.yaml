@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      containers:
+        - name: {{ .Values.name }}
+          image: {{ .Values.docker_registry }}/{{ .Values.name }}:{{ .Values.rev }}
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          ports:
+            - containerPort: 8084
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8084
+          env:
+            - name: FORCE_UPDATE
+              value: "{{ .Values.force_update | default 0 }}"
+            - name: DPL_SETTINGS
+              value: "/data/.settings.json"
+            {{- range $key, $value := .Values }}{{ if hasPrefix "env_" $key }}
+            - name: {{ $key | trimPrefix "env_" }}
+              value: "{{ $value }}"
+            {{- end }}{{- end }}
+          volumeMounts:
+            - name: settings-secrets
+              mountPath: "/data"
+              readOnly: true
+      volumes:
+        - name: settings-secrets
+          secret:
+            secretName: dino-park-whoami
