@@ -1,9 +1,9 @@
+use actix_web::dev::Payload;
 #[cfg(not(feature = "nouid"))]
 use actix_web::error;
+use actix_web::Error;
 use actix_web::FromRequest;
 use actix_web::HttpRequest;
-use actix_web::dev::Payload;
-use actix_web::Error;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct UserId {

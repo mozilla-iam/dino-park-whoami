@@ -9,9 +9,9 @@ use actix_web::cookie::SameSite;
 use actix_web::dev::HttpServiceFactory;
 use actix_web::http;
 use actix_web::middleware::cors::Cors;
+use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
-use actix_web::web;
 use actix_web::Responder;
 use cis_client::getby::GetBy;
 use cis_client::AsyncCisClientTrait;
@@ -187,7 +187,7 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
         )),
     );
 
-    return web::scope("/github/")
+    web::scope("/github/")
         .wrap(
             Cors::new()
                 .allowed_methods(vec!["GET", "POST"])
@@ -209,5 +209,5 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
         .data(cis_client)
         .service(web::resource("/add").route(web::get().to(redirect)))
         .service(web::resource("/auth").route(web::get().to_async(auth::<T>)))
-        .service(web::resource("/username/{id}").route(web::get().to_async(id_to_username)));
+        .service(web::resource("/username/{id}").route(web::get().to_async(id_to_username)))
 }

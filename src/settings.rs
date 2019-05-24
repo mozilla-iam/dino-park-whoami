@@ -1,5 +1,5 @@
-use config::{Config, ConfigError, Environment, File};
 use cis_client::settings::CisSettings;
+use config::{Config, ConfigError, Environment, File};
 use std::env;
 
 #[derive(Debug, Deserialize, Clone)]

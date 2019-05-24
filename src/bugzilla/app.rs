@@ -7,8 +7,8 @@ use actix_session::Session;
 use actix_web::client::Client;
 use actix_web::cookie::SameSite;
 use actix_web::dev::HttpServiceFactory;
-use actix_web::middleware::cors::Cors;
 use actix_web::http;
+use actix_web::middleware::cors::Cors;
 use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
@@ -107,14 +107,9 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                     println!("login: {}, id: {}", j.login, j.id);
                     get.get_user_by(&get_uid, &GetBy::UserId, None)
                         .and_then(move |profile: Profile| {
-                            update_bugzilla(
-                                j.id,
-                                j.login,
-                                profile,
-                                get.get_secret_store(),
-                            )
-                            .into_future()
-                            .map_err(Into::into)
+                            update_bugzilla(j.id, j.login, profile, get.get_secret_store())
+                                .into_future()
+                                .map_err(Into::into)
                         })
                         .map_err(Into::into)
                 })
@@ -145,14 +140,8 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
 ) -> impl HttpServiceFactory {
     let bugzilla_client_id = ClientId::new(bugzilla.client_id.clone());
     let bugzilla_client_secret = ClientSecret::new(bugzilla.client_secret.clone());
-    let auth_url = AuthUrl::new(
-        Url::parse(AUTH_URL)
-            .expect("Invalid authorization endpoint URL"),
-    );
-    let token_url = TokenUrl::new(
-        Url::parse(TOKEN_URL)
-            .expect("Invalid token endpoint URL"),
-    );
+    let auth_url = AuthUrl::new(Url::parse(AUTH_URL).expect("Invalid authorization endpoint URL"));
+    let token_url = TokenUrl::new(Url::parse(TOKEN_URL).expect("Invalid token endpoint URL"));
 
     let client = Arc::new(
         BasicClient::new(
@@ -163,11 +152,12 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
         )
         .add_scope(Scope::new("read:user".to_string()))
         .set_redirect_url(RedirectUrl::new(
-            Url::parse(&format!("https://{}/whoami/bugzilla/auth", whoami.domain)).expect("Invalid redirect URL"),
+            Url::parse(&format!("https://{}/whoami/bugzilla/auth", whoami.domain))
+                .expect("Invalid redirect URL"),
         )),
     );
 
-    return web::scope("/bugzilla/")
+    web::scope("/bugzilla/")
         .wrap(
             Cors::new()
                 .allowed_methods(vec!["GET", "POST"])
@@ -188,5 +178,5 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
         .data(client)
         .data(cis_client)
         .service(web::resource("/add").route(web::get().to(redirect)))
-        .service(web::resource("/auth").route(web::get().to_async(auth::<T>)));
+        .service(web::resource("/auth").route(web::get().to_async(auth::<T>)))
 }
