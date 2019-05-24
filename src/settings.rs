@@ -1,5 +1,12 @@
 use config::{Config, ConfigError, Environment, File};
+use cis_client::settings::CisSettings;
 use std::env;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BugZilla {
+    pub client_id: String,
+    pub client_secret: String,
+}
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct GitHub {
@@ -9,13 +16,20 @@ pub struct GitHub {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Providers {
-    pub github: GitHub;
+    pub github: GitHub,
+    pub bugzilla: BugZilla,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
+pub struct WhoAmI {
+    pub domain: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
-    pub key: String,
     pub providers: Providers,
+    pub cis: CisSettings,
+    pub whoami: WhoAmI,
 }
 
 impl Settings {

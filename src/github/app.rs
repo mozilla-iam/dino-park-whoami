@@ -1,3 +1,23 @@
+use crate::settings::GitHub;
+use crate::settings::WhoAmI;
+use crate::update::update_github;
+use crate::userid::UserId;
+use actix_session::CookieSession;
+use actix_session::Session;
+use actix_web::client::Client;
+use actix_web::cookie::SameSite;
+use actix_web::dev::HttpServiceFactory;
+use actix_web::http;
+use actix_web::web;
+use actix_web::Error;
+use actix_web::HttpResponse;
+use actix_web::Responder;
+use cis_client::getby::GetBy;
+use cis_client::AsyncCisClientTrait;
+use cis_profile::schema::Profile;
+use future::IntoFuture;
+use futures::future;
+use futures::Future;
 use oauth2::basic::BasicClient;
 use oauth2::prelude::*;
 use oauth2::AuthUrl;
@@ -9,22 +29,12 @@ use oauth2::RedirectUrl;
 use oauth2::Scope;
 use oauth2::TokenResponse;
 use oauth2::TokenUrl;
-use std::env;
 use std::sync::Arc;
 use url::Url;
 
-use actix_session::CookieSession;
-use actix_session::Session;
-use actix_web::client::Client;
-use actix_web::cookie::SameSite;
-use actix_web::dev::HttpServiceFactory;
-use actix_web::http;
-use actix_web::web;
-use actix_web::Error;
-use actix_web::HttpResponse;
-use actix_web::Responder;
-use futures::future;
-use futures::Future;
+const AUTH_URL: &str = "https://github.com/login/oauth/authorize";
+const TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
+const USER_URL: &str = "https://api.github.com/user";
 
 #[derive(Deserialize)]
 pub struct Auth {
@@ -34,7 +44,9 @@ pub struct Auth {
 
 #[derive(Deserialize)]
 pub struct GitHubUser {
+    id: i64,
     login: String,
+    email: Option<String>,
     node_id: String,
 }
 
@@ -50,8 +62,10 @@ fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Respo
         })
 }
 
-fn auth(
+fn auth<T: AsyncCisClientTrait + 'static>(
     client: web::Data<Arc<BasicClient>>,
+    user_id: UserId,
+    cis_client: web::Data<T>,
     query: web::Query<Auth>,
     session: Session,
 ) -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
@@ -77,19 +91,41 @@ fn auth(
     let token_res = client.exchange_code(code);
 
     if let Ok(token) = token_res {
+        let get = cis_client.clone();
+        let get_uid = user_id.user_id.clone();
         return Box::new(
             Client::default()
-                .get("https://api.github.com/user")
+                .get(USER_URL)
                 .bearer_auth(token.access_token().secret())
-                .header(http::header::USER_AGENT, "fuck off")
+                .header(http::header::USER_AGENT, "whoami")
                 .send()
                 .map_err(Into::into)
                 .and_then(|mut res| {
                     println!("status: {}", res.status());
                     res.json::<GitHubUser>().map_err(Into::into)
                 })
-                .and_then(|j| {
+                .and_then(move |j| {
                     println!("login: {}, id: {}", j.login, j.node_id);
+                    get.get_user_by(&get_uid, &GetBy::UserId, None)
+                        .and_then(move |profile: Profile| {
+                            update_github(
+                                j.node_id,
+                                format!("{}", j.id),
+                                j.email,
+                                profile,
+                                get.get_secret_store(),
+                            )
+                            .into_future()
+                            .map_err(Into::into)
+                        })
+                        .map_err(Into::into)
+                })
+                .and_then(move |profile: Profile| {
+                    cis_client
+                        .update_user(&user_id.user_id, profile)
+                        .map_err(Into::into)
+                })
+                .and_then(|_| {
                     HttpResponse::Found()
                         .header(http::header::LOCATION, "/e")
                         .finish()
@@ -103,20 +139,19 @@ fn auth(
     ))
 }
 
-pub fn github_app() -> impl HttpServiceFactory {
-    let github_client_id = ClientId::new(
-        env::var("GITHUB_CLIENT_ID").expect("Missing the GITHUB_CLIENT_ID environment variable."),
-    );
-    let github_client_secret = ClientSecret::new(
-        env::var("GITHUB_CLIENT_SECRET")
-            .expect("Missing the GITHUB_CLIENT_SECRET environment variable."),
-    );
+pub fn github_app<T: AsyncCisClientTrait + 'static>(
+    github: &GitHub,
+    whoami: &WhoAmI,
+    cis_client: T,
+) -> impl HttpServiceFactory {
+    let github_client_id = ClientId::new(github.client_id.clone());
+    let github_client_secret = ClientSecret::new(github.client_secret.clone());
     let auth_url = AuthUrl::new(
-        Url::parse("https://github.com/login/oauth/authorize")
+        Url::parse(AUTH_URL)
             .expect("Invalid authorization endpoint URL"),
     );
     let token_url = TokenUrl::new(
-        Url::parse("https://github.com/login/oauth/access_token")
+        Url::parse(TOKEN_URL)
             .expect("Invalid token endpoint URL"),
     );
 
@@ -129,7 +164,7 @@ pub fn github_app() -> impl HttpServiceFactory {
         )
         .add_scope(Scope::new("read:user".to_string()))
         .set_redirect_url(RedirectUrl::new(
-            Url::parse("http://127.0.0.1:8084/whoami/github/auth").expect("Invalid redirect URL"),
+            Url::parse(&format!("https://{}/whoami/github/auth", whoami.domain)).expect("Invalid redirect URL"),
         )),
     );
 
@@ -138,13 +173,14 @@ pub fn github_app() -> impl HttpServiceFactory {
             CookieSession::private(&[0; 32])
                 .name("dpw_gh")
                 .path("/whoami/github")
-                .domain("127.0.0.1")
+                .domain(whoami.domain.clone())
                 .same_site(SameSite::Lax)
                 .http_only(true)
                 .secure(false)
                 .max_age(300),
         )
         .data(client)
+        .data(cis_client)
         .service(web::resource("/add").route(web::get().to(redirect)))
-        .service(web::resource("/auth").route(web::get().to_async(auth)));
+        .service(web::resource("/auth").route(web::get().to_async(auth::<T>)));
 }
