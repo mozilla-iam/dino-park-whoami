@@ -15,6 +15,8 @@ spec:
     metadata:
       labels:
         app: {{ .Values.name }}
+      annotations:
+        iam.amazonaws.com/role: {{ .Values.assume_role }}
     spec:
       containers:
         - name: {{ .Values.name }}
@@ -34,8 +36,10 @@ spec:
           env:
             - name: FORCE_UPDATE
               value: "{{ .Values.force_update | default 0 }}"
-            - name: DPL_SETTINGS
-              value: "/data/.settings.json"
+            - name: DPW_SETTINGS
+              value: "/data/.settings-{{ .Values.env }}.json"
+            - name: AWS_DEFAULT_REGION
+              value: "{{ .Values.aws_region | default "us-west-2" }}"
             {{- range $key, $value := .Values }}{{ if hasPrefix "env_" $key }}
             - name: {{ $key | trimPrefix "env_" }}
               value: "{{ $value }}"

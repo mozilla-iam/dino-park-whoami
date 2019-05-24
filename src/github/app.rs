@@ -8,9 +8,10 @@ use actix_web::client::Client;
 use actix_web::cookie::SameSite;
 use actix_web::dev::HttpServiceFactory;
 use actix_web::http;
-use actix_web::web;
+use actix_web::middleware::cors::Cors;
 use actix_web::Error;
 use actix_web::HttpResponse;
+use actix_web::web;
 use actix_web::Responder;
 use cis_client::getby::GetBy;
 use cis_client::AsyncCisClientTrait;
@@ -42,12 +43,34 @@ pub struct Auth {
     state: String,
 }
 
+#[derive(Serialize)]
+pub struct GitHubUsername {
+    username: String,
+}
+
 #[derive(Deserialize)]
 pub struct GitHubUser {
     id: i64,
     login: String,
     email: Option<String>,
     node_id: String,
+}
+
+fn id_to_username(id: web::Path<String>) -> impl Future<Item = HttpResponse, Error = Error> {
+    Client::default()
+        .get(format!("{}/{}", USER_URL, id))
+        .header(http::header::USER_AGENT, "whoami")
+        .send()
+        .map_err(Into::into)
+        .and_then(|mut res| {
+            println!("status: {}", res.status());
+            res.json::<GitHubUser>().map_err(Into::into)
+        })
+        .and_then(|user| {
+            HttpResponse::Ok().json(GitHubUsername {
+                username: user.login,
+            })
+        })
 }
 
 fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
@@ -146,14 +169,8 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
 ) -> impl HttpServiceFactory {
     let github_client_id = ClientId::new(github.client_id.clone());
     let github_client_secret = ClientSecret::new(github.client_secret.clone());
-    let auth_url = AuthUrl::new(
-        Url::parse(AUTH_URL)
-            .expect("Invalid authorization endpoint URL"),
-    );
-    let token_url = TokenUrl::new(
-        Url::parse(TOKEN_URL)
-            .expect("Invalid token endpoint URL"),
-    );
+    let auth_url = AuthUrl::new(Url::parse(AUTH_URL).expect("Invalid authorization endpoint URL"));
+    let token_url = TokenUrl::new(Url::parse(TOKEN_URL).expect("Invalid token endpoint URL"));
 
     let client = Arc::new(
         BasicClient::new(
@@ -164,11 +181,19 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
         )
         .add_scope(Scope::new("read:user".to_string()))
         .set_redirect_url(RedirectUrl::new(
-            Url::parse(&format!("https://{}/whoami/github/auth", whoami.domain)).expect("Invalid redirect URL"),
+            Url::parse(&format!("https://{}/whoami/github/auth", whoami.domain))
+                .expect("Invalid redirect URL"),
         )),
     );
 
     return web::scope("/github/")
+        .wrap(
+            Cors::new()
+                .allowed_methods(vec!["GET", "POST"])
+                .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+                .allowed_header(http::header::CONTENT_TYPE)
+                .max_age(3600),
+        )
         .wrap(
             CookieSession::private(&[0; 32])
                 .name("dpw_gh")
@@ -182,5 +207,6 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
         .data(client)
         .data(cis_client)
         .service(web::resource("/add").route(web::get().to(redirect)))
-        .service(web::resource("/auth").route(web::get().to_async(auth::<T>)));
+        .service(web::resource("/auth").route(web::get().to_async(auth::<T>)))
+        .service(web::resource("/username/{id}").route(web::get().to_async(id_to_username)));
 }

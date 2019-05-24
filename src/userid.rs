@@ -18,8 +18,11 @@ impl FromRequest for UserId {
     #[cfg(not(feature = "nouid"))]
     #[inline]
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
-        req.headers()
+        let user_id = req
+            .headers()
             .get("x-forwarded-user-subject")
+            .or_else(|| req.headers().get("x-auth-subject"));
+        user_id
             .and_then(|id| id.to_str().ok())
             .map(|id| UserId {
                 user_id: id.to_owned(),
