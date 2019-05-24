@@ -37,15 +37,17 @@ fn main() -> Result<(), Error> {
     let s = settings::Settings::new()?;
     let client = cis_client::CisClient::from_settings(&s.cis)?;
     info!("initialized cis_client");
+    let secret = base64::decode(&s.whoami.secret)?;
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .service(
                 web::scope("/whoami/")
-                    .service(github_app(&s.providers.github, &s.whoami, client.clone()))
+                    .service(github_app(&s.providers.github, &s.whoami, &secret, client.clone()))
                     .service(bugzilla_app(
                         &s.providers.bugzilla,
                         &s.whoami,
+                        &secret,
                         client.clone(),
                     )),
             )

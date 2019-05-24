@@ -140,6 +140,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
 pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
     bugzilla: &BugZilla,
     whoami: &WhoAmI,
+    secret: &[u8],
     cis_client: T,
 ) -> impl HttpServiceFactory {
     let bugzilla_client_id = ClientId::new(bugzilla.client_id.clone());
@@ -175,7 +176,7 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
                 .max_age(3600),
         )
         .wrap(
-            CookieSession::private(&[0; 32])
+            CookieSession::private(secret)
                 .name("dpw_bz")
                 .path("/whoami/bugzilla")
                 .domain(whoami.domain.clone())

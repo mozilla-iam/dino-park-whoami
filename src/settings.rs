@@ -23,6 +23,7 @@ pub struct Providers {
 #[derive(Debug, Deserialize, Clone)]
 pub struct WhoAmI {
     pub domain: String,
+    pub secret: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

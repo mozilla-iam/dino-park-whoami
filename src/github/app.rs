@@ -165,6 +165,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
 pub fn github_app<T: AsyncCisClientTrait + 'static>(
     github: &GitHub,
     whoami: &WhoAmI,
+    secret: &[u8],
     cis_client: T,
 ) -> impl HttpServiceFactory {
     let github_client_id = ClientId::new(github.client_id.clone());
@@ -195,7 +196,7 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
                 .max_age(3600),
         )
         .wrap(
-            CookieSession::private(&[0; 32])
+            CookieSession::private(secret)
                 .name("dpw_gh")
                 .path("/whoami/github")
                 .domain(whoami.domain.clone())
