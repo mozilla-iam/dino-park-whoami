@@ -3,6 +3,7 @@ use chrono::Utc;
 use cis_profile::crypto::SecretStore;
 use cis_profile::crypto::Signer;
 use cis_profile::schema::Profile;
+use cis_profile::schema::Display;
 use cis_profile::schema::PublisherAuthority;
 use cis_profile::schema::StandardAttributeString;
 use failure::Error;
@@ -67,6 +68,9 @@ fn update_and_sign(
     now: &str,
 ) -> Result<(), Error> {
     field.value = Some(value);
+    if field.metadata.display.is_none() {
+        field.metadata.display = Some(Display::Private);
+    }
     field.metadata.last_modified = now.to_owned();
     field.signature.publisher.name = PublisherAuthority::Mozilliansorg;
     store.sign_attribute(field)
