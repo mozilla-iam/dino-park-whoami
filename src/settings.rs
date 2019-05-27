@@ -6,6 +6,7 @@ use std::env;
 pub struct BugZilla {
     pub client_id: String,
     pub client_secret: String,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -40,7 +40,7 @@ fn main() -> Result<(), Error> {
     let secret = base64::decode(&s.whoami.secret)?;
     HttpServer::new(move || {
         App::new()
-            .wrap(Logger::default())
+            .wrap(Logger::default().exclude("/healthz"))
             .service(
                 web::scope("/whoami/")
                     .service(github_app(
