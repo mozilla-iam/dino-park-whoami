@@ -15,7 +15,7 @@ oauth2 = "2.0.0-beta.2"
 url = "1.7.2"
 base64 = "0.10.1"
 rand = "0.6.5"
-actix-web = { version = "1.0.0-rc", features = ["ssl"] }
+actix-web = { version = "1.0.0", features = ["ssl"] }
 actix-session = "0.1.0"
 failure = "0.1.5"
 config = "0.9.3"
