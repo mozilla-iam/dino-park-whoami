@@ -100,14 +100,14 @@ fn auth<T: AsyncCisClientTrait + 'static>(
         if must_state != state.secret() {
             return Box::new(future::ok(
                 HttpResponse::Found()
-                    .header(http::header::LOCATION, "/error")
+                    .header(http::header::LOCATION, "/e?identityAdded=error")
                     .finish(),
             ));
         }
     } else {
         return Box::new(future::ok(
             HttpResponse::Found()
-                .header(http::header::LOCATION, "/error")
+                .header(http::header::LOCATION, "/e?identityAdded=error")
                 .finish(),
         ));
     }
@@ -150,14 +150,14 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                 })
                 .and_then(|_| {
                     HttpResponse::Found()
-                        .header(http::header::LOCATION, "/e")
+                        .header(http::header::LOCATION, "/e?identityAdded=github")
                         .finish()
                 }),
         );
     }
     Box::new(future::ok(
         HttpResponse::Found()
-            .header(http::header::LOCATION, "/error")
+            .header(http::header::LOCATION, "/e?identityAdded=error")
             .finish(),
     ))
 }
