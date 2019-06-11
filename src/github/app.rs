@@ -63,7 +63,7 @@ fn id_to_username(id: web::Path<String>) -> impl Future<Item = HttpResponse, Err
         .send()
         .map_err(Into::into)
         .and_then(|mut res| {
-            println!("status: {}", res.status());
+            info!("status: {}", res.status());
             res.json::<GitHubUser>().map_err(Into::into)
         })
         .and_then(|user| {
@@ -75,7 +75,7 @@ fn id_to_username(id: web::Path<String>) -> impl Future<Item = HttpResponse, Err
 
 fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
     let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random);
-    println!("settting: {}", csrf_state.secret());
+    info!("settting: {}", csrf_state.secret());
     session
         .set("csrf_state", csrf_state.secret().clone())
         .map(|_| {
@@ -94,9 +94,9 @@ fn auth<T: AsyncCisClientTrait + 'static>(
 ) -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
     let code = AuthorizationCode::new(query.code.clone());
     let state = CsrfToken::new(query.state.clone());
-    println!("remote: {}", state.secret());
+    info!("remote: {}", state.secret());
     if let Some(ref must_state) = session.get::<String>("csrf_state").unwrap() {
-        println!("session: {}", must_state);
+        info!("session: {}", must_state);
         if must_state != state.secret() {
             return Box::new(future::ok(
                 HttpResponse::Found()
@@ -124,11 +124,11 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                 .send()
                 .map_err(Into::into)
                 .and_then(|mut res| {
-                    println!("status: {}", res.status());
+                    info!("status: {}", res.status());
                     res.json::<GitHubUser>().map_err(Into::into)
                 })
                 .and_then(move |j| {
-                    println!("login: {}, id: {}", j.login, j.node_id);
+                    info!("login: {}, id: {}", j.login, j.node_id);
                     get.get_user_by(&get_uid, &GetBy::UserId, None)
                         .and_then(move |profile: Profile| {
                             update_github(
