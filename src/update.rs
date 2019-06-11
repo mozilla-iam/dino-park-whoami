@@ -69,7 +69,7 @@ fn update_and_sign(
 ) -> Result<(), Error> {
     field.value = Some(value);
     if field.metadata.display.is_none() {
-        field.metadata.display = Some(Display::Private);
+        field.metadata.display = Some(Display::Staff);
     }
     field.metadata.last_modified = now.to_owned();
     field.signature.publisher.name = PublisherAuthority::Mozilliansorg;
