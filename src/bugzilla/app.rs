@@ -49,7 +49,7 @@ pub struct BugZillaUser {
 
 fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
     let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random);
-    println!("settting: {}", csrf_state.secret());
+    info!("settting: {}", csrf_state.secret());
     session
         .set("csrf_state", csrf_state.secret().clone())
         .map(|_| {

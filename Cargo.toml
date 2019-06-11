@@ -9,8 +9,8 @@ default = []
 nouid = []
 
 [dependencies]
-cis_client = { git = "https://github.com/fiji-flo/cis_client-rust", branch = "async", version = "0.1.0-beta.1" }
-cis_profile = { git = "https://github.com/fiji-flo/cis_profile-rust", branch = "ring-14", version = "0.0.3" }
+cis_client = { git = "https://github.com/fiji-flo/cis_client-rust", branch = "async-2", version = "0.1.0-beta.2" }
+cis_profile = { git = "https://github.com/fiji-flo/cis_profile-rust", branch = "0.1.0", version = "0.1.0" }
 oauth2 = "2.0.0-beta.2"
 url = "1.7.2"
 base64 = "0.10.1"
