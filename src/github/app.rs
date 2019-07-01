@@ -71,7 +71,7 @@ fn id_to_username(
         Either::A(Ok(HttpResponse::Ok().json(GitHubUsername { username })).into_future())
     } else {
         let cache = Arc::clone(&*cache);
-        let cache_id = id.clone();
+        let cache_id = (*id).clone();
         Either::B(
             Client::default()
                 .get(format!("{}/{}", USER_URL, id))
@@ -83,10 +83,10 @@ fn id_to_username(
                     res.json::<GitHubUser>().map_err(Into::into)
                 })
                 .map(move |user| {
-                    cache.write().ok().map(|mut c| {
+                    if let Ok(mut c) = cache.write() {
                         info!("caching {} → {}", &cache_id, &user.login);
                         c.insert(cache_id, user.login.clone(), CACHE_DURATION);
-                    });
+                    }
                     user
                 })
                 .and_then(|user| {
