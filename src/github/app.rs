@@ -2,13 +2,13 @@ use crate::settings::GitHub;
 use crate::settings::WhoAmI;
 use crate::update::update_github;
 use crate::userid::UserId;
+use actix_cors::Cors;
 use actix_session::CookieSession;
 use actix_session::Session;
 use actix_web::client::Client;
 use actix_web::cookie::SameSite;
 use actix_web::dev::HttpServiceFactory;
 use actix_web::http;
-use actix_web::middleware::cors::Cors;
 use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
@@ -16,9 +16,10 @@ use actix_web::Responder;
 use cis_client::getby::GetBy;
 use cis_client::AsyncCisClientTrait;
 use cis_profile::schema::Profile;
-use future::IntoFuture;
 use futures::future;
+use futures::future::Either;
 use futures::Future;
+use futures::IntoFuture;
 use oauth2::basic::BasicClient;
 use oauth2::prelude::*;
 use oauth2::AuthUrl;
@@ -31,11 +32,16 @@ use oauth2::Scope;
 use oauth2::TokenResponse;
 use oauth2::TokenUrl;
 use std::sync::Arc;
+use std::sync::RwLock;
+use std::time::Duration;
+use ttl_cache::TtlCache;
 use url::Url;
 
 const AUTH_URL: &str = "https://github.com/login/oauth/authorize";
 const TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
 const USER_URL: &str = "https://api.github.com/user";
+
+const CACHE_DURATION: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[derive(Deserialize)]
 pub struct Auth {
@@ -56,21 +62,40 @@ pub struct GitHubUser {
     node_id: String,
 }
 
-fn id_to_username(id: web::Path<String>) -> impl Future<Item = HttpResponse, Error = Error> {
-    Client::default()
-        .get(format!("{}/{}", USER_URL, id))
-        .header(http::header::USER_AGENT, "whoami")
-        .send()
-        .map_err(Into::into)
-        .and_then(|mut res| {
-            info!("status: {}", res.status());
-            res.json::<GitHubUser>().map_err(Into::into)
-        })
-        .and_then(|user| {
-            HttpResponse::Ok().json(GitHubUsername {
-                username: user.login,
-            })
-        })
+fn id_to_username(
+    id: web::Path<String>,
+    cache: web::Data<Arc<RwLock<TtlCache<String, String>>>>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    if let Some(username) = cache.read().ok().and_then(|c| c.get(&*id).cloned()) {
+        info!("serving {} → {} from cache", &*id, &username);
+        Either::A(Ok(HttpResponse::Ok().json(GitHubUsername { username })).into_future())
+    } else {
+        let cache = Arc::clone(&*cache);
+        let cache_id = id.clone();
+        Either::B(
+            Client::default()
+                .get(format!("{}/{}", USER_URL, id))
+                .header(http::header::USER_AGENT, "whoami")
+                .send()
+                .map_err(Into::into)
+                .and_then(|mut res| {
+                    info!("status: {}", res.status());
+                    res.json::<GitHubUser>().map_err(Into::into)
+                })
+                .map(move |user| {
+                    cache.write().ok().map(|mut c| {
+                        info!("caching {} → {}", &cache_id, &user.login);
+                        c.insert(cache_id, user.login.clone(), CACHE_DURATION);
+                    });
+                    user
+                })
+                .and_then(|user| {
+                    HttpResponse::Ok().json(GitHubUsername {
+                        username: user.login,
+                    })
+                }),
+        )
+    }
 }
 
 fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
@@ -172,6 +197,7 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
     let github_client_secret = ClientSecret::new(github.client_secret.clone());
     let auth_url = AuthUrl::new(Url::parse(AUTH_URL).expect("Invalid authorization endpoint URL"));
     let token_url = TokenUrl::new(Url::parse(TOKEN_URL).expect("Invalid token endpoint URL"));
+    let ttl_cache = Arc::new(RwLock::new(TtlCache::<String, String>::new(2000)));
 
     let client = Arc::new(
         BasicClient::new(
@@ -207,6 +233,7 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
         )
         .data(client)
         .data(cis_client)
+        .data(ttl_cache)
         .service(web::resource("/add").route(web::get().to(redirect)))
         .service(web::resource("/auth").route(web::get().to_async(auth::<T>)))
         .service(web::resource("/username/{id}").route(web::get().to_async(id_to_username)))
