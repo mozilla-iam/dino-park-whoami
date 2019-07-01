@@ -2,6 +2,7 @@
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
+extern crate actix_cors;
 extern crate actix_session;
 extern crate actix_web;
 extern crate base64;
@@ -12,6 +13,7 @@ extern crate env_logger;
 extern crate futures;
 extern crate rand;
 extern crate serde_json;
+extern crate ttl_cache;
 extern crate url;
 
 mod bugzilla;
