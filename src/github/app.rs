@@ -160,6 +160,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                                 j.node_id,
                                 format!("{}", j.id),
                                 j.email,
+                                j.login,
                                 profile,
                                 get.get_secret_store(),
                             )
@@ -191,13 +192,13 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
     github: &GitHub,
     whoami: &WhoAmI,
     secret: &[u8],
+    ttl_cache: Arc<RwLock<TtlCache<String, String>>>,
     cis_client: T,
 ) -> impl HttpServiceFactory {
     let github_client_id = ClientId::new(github.client_id.clone());
     let github_client_secret = ClientSecret::new(github.client_secret.clone());
     let auth_url = AuthUrl::new(Url::parse(AUTH_URL).expect("Invalid authorization endpoint URL"));
     let token_url = TokenUrl::new(Url::parse(TOKEN_URL).expect("Invalid token endpoint URL"));
-    let ttl_cache = Arc::new(RwLock::new(TtlCache::<String, String>::new(2000)));
 
     let client = Arc::new(
         BasicClient::new(

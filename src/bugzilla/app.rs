@@ -41,10 +41,11 @@ pub struct Auth {
     state: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct BugZillaUser {
     id: String,
     login: String,
+    nick: Option<String>,
 }
 
 fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
@@ -102,10 +103,15 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                 res.json::<BugZillaUser>().map_err(Into::into)
             })
             .and_then(move |j| {
-                info!("login: {}, id: {}", j.login, j.id);
+                info!(
+                    "login: {}, id: {}, nick: {}",
+                    j.login,
+                    j.id,
+                    j.nick.as_ref().map(|s| s.as_str()).unwrap_or_default()
+                );
                 get.get_user_by(&get_uid, &GetBy::UserId, None)
                     .and_then(move |profile: Profile| {
-                        update_bugzilla(j.id, j.login, profile, get.get_secret_store())
+                        update_bugzilla(j.id, j.login, j.nick, profile, get.get_secret_store())
                             .into_future()
                             .map_err(Into::into)
                     })
