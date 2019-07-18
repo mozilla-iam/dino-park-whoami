@@ -9,6 +9,8 @@ use cis_profile::schema::PublisherAuthority;
 use cis_profile::schema::StandardAttributeString;
 use cis_profile::schema::StandardAttributeValues;
 use failure::Error;
+use std::collections::BTreeMap;
+use std::iter::FromIterator;
 
 fn create_usernames_key(typ: &str) -> String {
     format!("HACK#{}", typ)
@@ -91,6 +93,10 @@ fn update_and_sign_values_field(
         for (k, v) in kv_pairs.into_iter() {
             values.insert(k, Some(v));
         }
+    } else {
+        field.values = Some(KeyValue(BTreeMap::from_iter(
+            kv_pairs.into_iter().map(|(k, v)| (k, Some(v))),
+        )))
     }
     if field.metadata.display.is_none() {
         field.metadata.display = Some(Display::Staff);
