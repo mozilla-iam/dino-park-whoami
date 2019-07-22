@@ -64,6 +64,7 @@ pub struct GitHubUser {
 
 fn id_to_username(
     id: web::Path<String>,
+    gtihub_auth_params: web::Data<String>,
     cache: web::Data<Arc<RwLock<TtlCache<String, String>>>>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     if let Some(username) = cache.read().ok().and_then(|c| c.get(&*id).cloned()) {
@@ -74,7 +75,7 @@ fn id_to_username(
         let cache_id = (*id).clone();
         Either::B(
             Client::default()
-                .get(format!("{}/{}", USER_URL, id))
+                .get(format!("{}/{}{}", USER_URL, id, *gtihub_auth_params))
                 .header(http::header::USER_AGENT, "whoami")
                 .send()
                 .map_err(Into::into)
@@ -199,6 +200,10 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
     let github_client_secret = ClientSecret::new(github.client_secret.clone());
     let auth_url = AuthUrl::new(Url::parse(AUTH_URL).expect("Invalid authorization endpoint URL"));
     let token_url = TokenUrl::new(Url::parse(TOKEN_URL).expect("Invalid token endpoint URL"));
+    let gtihub_auth_params = format!(
+        "?client_id={}&client_secret={}",
+        &github.client_id, &github.client_secret
+    );
 
     let client = Arc::new(
         BasicClient::new(
@@ -235,6 +240,7 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
         .data(client)
         .data(cis_client)
         .data(ttl_cache)
+        .data(gtihub_auth_params)
         .service(web::resource("/add").route(web::get().to(redirect)))
         .service(web::resource("/auth").route(web::get().to_async(auth::<T>)))
         .service(web::resource("/username/{id}").route(web::get().to_async(id_to_username)))
