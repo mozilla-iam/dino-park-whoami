@@ -1,20 +1,5 @@
 #[macro_use]
-extern crate log;
-#[macro_use]
 extern crate serde_derive;
-extern crate actix_cors;
-extern crate actix_session;
-extern crate actix_web;
-extern crate base64;
-extern crate chrono;
-extern crate cis_client;
-extern crate cis_profile;
-extern crate env_logger;
-extern crate futures;
-extern crate rand;
-extern crate serde_json;
-extern crate ttl_cache;
-extern crate url;
 
 mod bugzilla;
 mod github;
@@ -28,6 +13,7 @@ use crate::github::app::github_app;
 use actix_web::middleware::Logger;
 use actix_web::web;
 use actix_web::App;
+use log::info;
 use std::sync::Arc;
 use std::sync::RwLock;
 use ttl_cache::TtlCache;
