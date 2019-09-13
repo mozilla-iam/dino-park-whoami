@@ -19,6 +19,7 @@ use cis_profile::schema::Profile;
 use future::IntoFuture;
 use futures::future;
 use futures::Future;
+use log::info;
 use oauth2::basic::BasicClient;
 use oauth2::prelude::*;
 use oauth2::AuthUrl;

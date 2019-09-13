@@ -20,6 +20,7 @@ use futures::future;
 use futures::future::Either;
 use futures::Future;
 use futures::IntoFuture;
+use log::info;
 use oauth2::basic::BasicClient;
 use oauth2::prelude::*;
 use oauth2::AuthUrl;
@@ -28,7 +29,6 @@ use oauth2::ClientId;
 use oauth2::ClientSecret;
 use oauth2::CsrfToken;
 use oauth2::RedirectUrl;
-use oauth2::Scope;
 use oauth2::TokenResponse;
 use oauth2::TokenUrl;
 use std::sync::Arc;
@@ -212,7 +212,6 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
             auth_url,
             Some(token_url),
         )
-        .add_scope(Scope::new("read:user".to_string()))
         .set_redirect_url(RedirectUrl::new(
             Url::parse(&format!("https://{}/whoami/github/auth", whoami.domain))
                 .expect("Invalid redirect URL"),
