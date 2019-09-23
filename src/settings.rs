@@ -16,9 +16,18 @@ pub struct GitHub {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct Slack {
+    pub client_id: String,
+    pub client_secret: String,
+    pub scope: String,
+    pub redirect_uri: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Providers {
     pub github: GitHub,
     pub bugzilla: BugZilla,
+    pub slack: Slack,
 }
 
 #[derive(Debug, Deserialize, Clone)]

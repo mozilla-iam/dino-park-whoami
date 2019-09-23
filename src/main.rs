@@ -5,21 +5,22 @@ mod bugzilla;
 mod github;
 mod healthz;
 mod settings;
+mod slack;
 mod update;
 mod userid;
 
 use crate::bugzilla::app::bugzilla_app;
 use crate::github::app::github_app;
+use crate::slack::app::slack_app;
 use actix_web::middleware::Logger;
 use actix_web::web;
 use actix_web::App;
+use actix_web::HttpServer;
+use failure::Error;
 use log::info;
 use std::sync::Arc;
 use std::sync::RwLock;
 use ttl_cache::TtlCache;
-
-use actix_web::HttpServer;
-use failure::Error;
 
 fn main() -> Result<(), Error> {
     std::env::set_var("RUST_LOG", "info");
@@ -27,9 +28,9 @@ fn main() -> Result<(), Error> {
     info!("starting dino-park-whoami");
     let s = settings::Settings::new()?;
     let client = cis_client::CisClient::from_settings(&s.cis)?;
-    info!("initialized cis_client");
     let secret = base64::decode(&s.whoami.secret)?;
     let ttl_cache = Arc::new(RwLock::new(TtlCache::<String, String>::new(2000)));
+
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default().exclude("/healthz"))
@@ -47,11 +48,17 @@ fn main() -> Result<(), Error> {
                         &s.whoami,
                         &secret,
                         client.clone(),
+                    ))
+                    .service(slack_app(
+                        &s.providers.slack,
+                        &secret,
+                        Arc::clone(&ttl_cache),
+                        client.clone(),
                     )),
             )
             .service(healthz::healthz_app())
     })
-    .bind("0.0.0.0:8084")?
+    .bind("127.0.0.1:8084")?
     .run()
     .map_err(Into::into)
 }
