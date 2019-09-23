@@ -51,6 +51,7 @@ fn main() -> Result<(), Error> {
                     ))
                     .service(slack_app(
                         &s.providers.slack,
+                        &s.whoami,
                         &secret,
                         Arc::clone(&ttl_cache),
                         client.clone(),

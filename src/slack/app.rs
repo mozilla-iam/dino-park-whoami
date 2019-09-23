@@ -1,4 +1,5 @@
 use crate::settings::Slack;
+use crate::settings::WhoAmI;
 use crate::update::update_slack;
 use crate::userid::UserId;
 use actix_cors::Cors;
@@ -134,10 +135,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
             })
             .and_then(|_| {
                 HttpResponse::Found()
-                    .header(
-                        http::header::LOCATION,
-                        "https://dinopark.k8s.dev.sso.allizom.org/e?identityAdded=slack",
-                    )
+                    .header(http::header::LOCATION, "/e?identityAdded=slack")
                     .finish()
             }),
     );
@@ -145,6 +143,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
 
 pub fn slack_app<T: AsyncCisClientTrait + 'static>(
     slack: &Slack,
+    whoami: &WhoAmI,
     secret: &[u8],
     ttl_cache: Arc<RwLock<TtlCache<String, String>>>,
     cis_client: T,
@@ -186,7 +185,7 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
             CookieSession::private(secret)
                 .name("dpw_s")
                 .path("/whoami/slack")
-                .domain("d48ba8fa.ngrok.io") //whoami.domain.clone())
+                .domain(whoami.domain.clone())
                 .same_site(SameSite::Lax)
                 .http_only(true)
                 .secure(false)
