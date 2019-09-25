@@ -59,7 +59,7 @@ fn main() -> Result<(), Error> {
             )
             .service(healthz::healthz_app())
     })
-    .bind("127.0.0.1:8084")?
+    .bind("0.0.0.0:8084")?
     .run()
     .map_err(Into::into)
 }
