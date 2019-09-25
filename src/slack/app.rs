@@ -54,6 +54,12 @@ pub struct SlackTeam {
     id: String,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct SlackUriData {
+    slack_auth_params: String,
+    direct_message_uri: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct SlackTokenResponse {
     ok: bool,
@@ -79,7 +85,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
     cis_client: web::Data<T>,
     user_id: UserId,
     query: web::Query<Auth>,
-    slack_auth_params: web::Data<String>,
+    slack_uri_data: web::Data<SlackUriData>,
     session: Session,
 ) -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
     let code = query.code.clone();
@@ -87,7 +93,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
     let slack_token_url = format!(
         "{}{}&code={}",
         TOKEN_URL,
-        slack_auth_params.to_string(),
+        slack_uri_data.slack_auth_params.to_string(),
         code
     );
     if let Some(ref must_state) = session.get::<String>("csrf_state").unwrap() {
@@ -107,18 +113,22 @@ fn auth<T: AsyncCisClientTrait + 'static>(
     }
     let get = cis_client.clone();
     let get_uid = user_id.user_id.clone();
-    return Box::new(
+    Box::new(
         Client::default()
             .get(slack_token_url)
             .header(http::header::USER_AGENT, "whoami")
             .send()
             .map_err(Into::into)
-            .and_then(|mut res| res.json::<SlackTokenResponse>().map_err(Into::into))
+            .and_then(move |mut res| res.json::<SlackTokenResponse>().map_err(Into::into))
             .and_then(move |j| {
                 get.get_user_by(&get_uid, &GetBy::UserId, None)
                     .and_then(move |profile: Profile| {
                         update_slack(
-                            format!("slack://user?team={}&id={}", j.team.id, j.user.id),
+                            format!(
+                                "{}{}",
+                                slack_uri_data.direct_message_uri.to_string(),
+                                j.user.id
+                            ),
                             j.user.name,
                             profile,
                             get.get_secret_store(),
@@ -138,7 +148,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                     .header(http::header::LOCATION, "/e?identityAdded=slack")
                     .finish()
             }),
-    );
+    )
 }
 
 pub fn slack_app<T: AsyncCisClientTrait + 'static>(
@@ -172,6 +182,10 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
             Url::parse(&slack.redirect_uri).expect("Invalid redirect URL"),
         )),
     );
+    let slack_uri_data: SlackUriData = SlackUriData {
+        slack_auth_params,
+        direct_message_uri: slack.direct_message_uri.to_string(),
+    };
 
     web::scope("/slack/")
         .wrap(
@@ -194,7 +208,7 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
         .data(client)
         .data(cis_client)
         .data(ttl_cache)
-        .data(slack_auth_params)
+        .data(slack_uri_data)
         .service(web::resource("/add").route(web::get().to(redirect)))
         .service(web::resource("/auth").route(web::get().to_async(auth::<T>)))
 }

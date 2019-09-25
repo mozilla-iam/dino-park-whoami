@@ -21,6 +21,7 @@ pub struct Slack {
     pub client_secret: String,
     pub scope: String,
     pub redirect_uri: String,
+    pub direct_message_uri: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
