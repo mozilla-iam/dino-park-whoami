@@ -19,7 +19,6 @@ use cis_profile::schema::Profile;
 use futures::future;
 use futures::Future;
 use futures::IntoFuture;
-use log::info;
 use oauth2::basic::BasicClient;
 use oauth2::prelude::*;
 use oauth2::AuthUrl;
@@ -29,6 +28,7 @@ use oauth2::CsrfToken;
 use oauth2::RedirectUrl;
 use oauth2::Scope;
 use oauth2::TokenUrl;
+use serde_json::json;
 use std::sync::Arc;
 use std::sync::RwLock;
 use ttl_cache::TtlCache;
@@ -36,6 +36,8 @@ use url::Url;
 
 const AUTH_URL: &str = "https://slack.com/oauth/authorize";
 const TOKEN_URL: &str = "https://slack.com/api/oauth.access";
+const OPEN_DM_URL: &str = "https://slack.com/api/im.open";
+const USERS_IDENTITY_URL: &str = "https://slack.com/api/users.identity";
 
 #[derive(Deserialize)]
 pub struct Auth {
@@ -49,9 +51,30 @@ pub struct SlackUser {
     id: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct SlackTeam {
+impl Clone for SlackUser {
+    fn clone(&self) -> SlackUser {
+        SlackUser {
+            name: self.name.to_string(),
+            id: self.id.to_string(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct SlackIDData {
     id: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct SlackChannelUserData {
+    channel: SlackIDData,
+    user: SlackUser,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct SlackUserTokenData {
+    token: String,
+    user: SlackUser,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -60,20 +83,76 @@ pub struct SlackUriData {
     direct_message_uri: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct SlackIMResponse {
+    ok: bool,
+    channel: SlackIDData,
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct SlackTokenResponse {
     ok: bool,
     access_token: String,
     scope: String,
-    user: SlackUser,
-    team: SlackTeam,
+    user_id: String,
+    team_id: String,
+    team_name: String,
 }
 
-fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
-    let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random);
-    info!("Setting csrf_state: {}", csrf_state.secret().clone());
+#[derive(Deserialize, Debug, Clone)]
+pub struct SlackUserResponse {
+    ok: bool,
+    user: SlackUser,
+    team: SlackIDData,
+}
+
+#[derive(Debug)]
+pub struct SlackClientHandlers {
+    im: Arc<BasicClient>,
+    identity: Arc<BasicClient>,
+}
+
+/**
+ * First redirect that handles getting authorization for identity scopes
+ */
+fn redirect_identity(client: web::Data<SlackClientHandlers>, session: Session) -> impl Responder {
+    let (authorize_url, csrf_state) = client.identity.authorize_url(CsrfToken::new_random);
     session
-        .set("csrf_state", csrf_state.secret().clone())
+        .set("identity_csrf_state", csrf_state.secret().clone())
+        .map(|_| {
+            HttpResponse::Found()
+                .header(http::header::LOCATION, authorize_url.to_string())
+                .finish()
+        })
+}
+
+/**
+ * Second redirect that handles getting authorization for opening a channel for a direct message
+ */
+fn redirect_im(
+    client: web::Data<SlackClientHandlers>,
+    session: Session,
+    query: web::Query<Auth>,
+) -> impl Responder {
+    let (authorize_url, csrf_state) = client.im.authorize_url(CsrfToken::new_random);
+    let state = CsrfToken::new(query.state.clone());
+    if let Some(ref must_state) = session.get::<String>("identity_csrf_state").unwrap() {
+        if must_state != state.secret() {
+            return session.set("im_csrf_state", "").map(|_| {
+                HttpResponse::Found()
+                    .header(http::header::LOCATION, "/e?identityAdded=error")
+                    .finish()
+            });
+        }
+    } else {
+        return session.set("im_csrf_state", "").map(|_| {
+            HttpResponse::Found()
+                .header(http::header::LOCATION, "/e?identityAdded=error")
+                .finish()
+        });
+    }
+    session
+        .set("im_csrf_state", csrf_state.secret().clone())
         .map(|_| {
             HttpResponse::Found()
                 .header(http::header::LOCATION, authorize_url.to_string())
@@ -96,7 +175,9 @@ fn auth<T: AsyncCisClientTrait + 'static>(
         slack_uri_data.slack_auth_params.to_string(),
         code
     );
-    if let Some(ref must_state) = session.get::<String>("csrf_state").unwrap() {
+
+    // Check state token from im_crsf_state
+    if let Some(ref must_state) = session.get::<String>("im_csrf_state").unwrap() {
         if must_state != state.secret() {
             return Box::new(future::ok(
                 HttpResponse::Found()
@@ -113,6 +194,8 @@ fn auth<T: AsyncCisClientTrait + 'static>(
     }
     let get = cis_client.clone();
     let get_uid = user_id.user_id.clone();
+
+    // Begin slack requests by grabbing the user_id, and access_token
     Box::new(
         Client::default()
             .get(slack_token_url)
@@ -121,15 +204,55 @@ fn auth<T: AsyncCisClientTrait + 'static>(
             .map_err(Into::into)
             .and_then(move |mut res| res.json::<SlackTokenResponse>().map_err(Into::into))
             .and_then(move |j| {
+                let user_uri = format!("{}?token={}", USERS_IDENTITY_URL, j.access_token.clone());
+                // Now that we have the access_token, go get the user data: name, id
+                Client::default()
+                    .get(user_uri)
+                    .header("Content-type", "application/json; charset=utf-8")
+                    .header(
+                        "Authorization",
+                        format!("Bearer {}", j.access_token.clone()),
+                    )
+                    .send()
+                    .map_err(Into::into)
+                    .and_then(move |mut s| s.json::<SlackUserResponse>().map_err(Into::into))
+                    .and_then(move |sur| {
+                        Ok(SlackUserTokenData {
+                            token: j.access_token,
+                            user: sur.user,
+                        })
+                    })
+            })
+            .and_then(move |sutd| {
+                // Now that we have the access_token and user data, go open a direct message channel and save the channel id
+                Client::default()
+                    .post(OPEN_DM_URL)
+                    .header("Content-type", "application/json; charset=utf-8")
+                    .header("Authorization", format!("Bearer {}", sutd.token))
+                    .send_json(&json!({
+                        "token": sutd.token.clone(),
+                        "user": sutd.user.id.clone(),
+                    }))
+                    .map_err(Into::into)
+                    .and_then(move |mut s| s.json::<SlackIMResponse>().map_err(Into::into))
+                    .and_then(move |simr| {
+                        Ok(SlackChannelUserData {
+                            channel: simr.channel,
+                            user: sutd.user,
+                        })
+                    })
+            })
+            .and_then(move |scu_data| {
+                // Now that we have the access_token, user data, and channel id, go put it in the profile
                 get.get_user_by(&get_uid, &GetBy::UserId, None)
                     .and_then(move |profile: Profile| {
                         update_slack(
                             format!(
                                 "{}{}",
                                 slack_uri_data.direct_message_uri.to_string(),
-                                j.user.id
+                                scu_data.channel.id
                             ),
-                            j.user.name,
+                            scu_data.user.name.clone(),
                             profile,
                             get.get_secret_store(),
                         )
@@ -139,6 +262,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                     .map_err(Into::into)
             })
             .and_then(move |profile: Profile| {
+                // Now finally save the updated user profile
                 cis_client
                     .update_user(&user_id.user_id, profile)
                     .map_err(Into::into)
@@ -160,30 +284,54 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
 ) -> impl HttpServiceFactory {
     let slack_client_id = ClientId::new(slack.client_id.clone());
     let slack_client_secret = ClientSecret::new(slack.client_secret.clone());
-    let slack_auth_params = format!(
+    let identity_slack_auth_params = format!(
         "?client_id={}&client_secret={}&redirect_uri={}",
-        &slack.client_id, &slack.client_secret, &slack.redirect_uri
+        &slack.client_id, &slack.client_secret, &slack.identity_redirect_uri
+    );
+    let im_slack_auth_params = format!(
+        "?client_id={}&client_secret={}&redirect_uri={}",
+        &slack.client_id, &slack.client_secret, &slack.im_redirect_uri
     );
     let auth_url = AuthUrl::new(Url::parse(AUTH_URL).expect("Invalid authorization endpoint URL"));
-    let token_url = TokenUrl::new(
-        Url::parse(&format!("{}{}", TOKEN_URL, slack_auth_params))
+    let identity_token_url = TokenUrl::new(
+        Url::parse(&format!("{}{}", TOKEN_URL, identity_slack_auth_params))
+            .expect("Invalid token endpoint URL"),
+    );
+    let im_token_url = TokenUrl::new(
+        Url::parse(&format!("{}{}", TOKEN_URL, im_slack_auth_params))
             .expect("Invalid token endpoint URL"),
     );
 
-    let client = Arc::new(
+    let identity_client = Arc::new(
+        BasicClient::new(
+            slack_client_id.clone(),
+            Some(slack_client_secret.clone()),
+            auth_url.clone(),
+            Some(identity_token_url),
+        )
+        .add_scope(Scope::new(slack.identity_scope.to_string()))
+        .set_redirect_url(RedirectUrl::new(
+            Url::parse(&slack.identity_redirect_uri).expect("Invalid redirect URL"),
+        )),
+    );
+    let im_client = Arc::new(
         BasicClient::new(
             slack_client_id,
             Some(slack_client_secret),
             auth_url,
-            Some(token_url),
+            Some(im_token_url),
         )
-        .add_scope(Scope::new(slack.scope.to_string()))
+        .add_scope(Scope::new(slack.im_scope.to_string()))
         .set_redirect_url(RedirectUrl::new(
-            Url::parse(&slack.redirect_uri).expect("Invalid redirect URL"),
+            Url::parse(&slack.im_redirect_uri).expect("Invalid redirect URL"),
         )),
     );
+    let client_data_handlers: SlackClientHandlers = SlackClientHandlers {
+        im: im_client,
+        identity: identity_client,
+    };
     let slack_uri_data: SlackUriData = SlackUriData {
-        slack_auth_params,
+        slack_auth_params: im_slack_auth_params,
         direct_message_uri: slack.direct_message_uri.to_string(),
     };
 
@@ -205,10 +353,11 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
                 .secure(false)
                 .max_age(300),
         )
-        .data(client)
+        .data(client_data_handlers)
         .data(cis_client)
         .data(ttl_cache)
         .data(slack_uri_data)
-        .service(web::resource("/add").route(web::get().to(redirect)))
+        .service(web::resource("/add").route(web::get().to(redirect_identity)))
+        .service(web::resource("/add/im").route(web::get().to(redirect_im)))
         .service(web::resource("/auth").route(web::get().to_async(auth::<T>)))
 }

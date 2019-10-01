@@ -19,8 +19,10 @@ pub struct GitHub {
 pub struct Slack {
     pub client_id: String,
     pub client_secret: String,
-    pub scope: String,
-    pub redirect_uri: String,
+    pub identity_scope: String,
+    pub im_scope: String,
+    pub identity_redirect_uri: String,
+    pub im_redirect_uri: String,
     pub direct_message_uri: String,
 }
 
