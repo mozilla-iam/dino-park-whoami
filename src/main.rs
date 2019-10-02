@@ -53,7 +53,6 @@ fn main() -> Result<(), Error> {
                         &s.providers.slack,
                         &s.whoami,
                         &secret,
-                        Arc::clone(&ttl_cache),
                         client.clone(),
                     )),
             )

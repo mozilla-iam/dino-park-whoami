@@ -30,8 +30,6 @@ use oauth2::Scope;
 use oauth2::TokenUrl;
 use serde_json::json;
 use std::sync::Arc;
-use std::sync::RwLock;
-use ttl_cache::TtlCache;
 use url::Url;
 
 const AUTH_URL: &str = "https://slack.com/oauth/authorize";
@@ -167,13 +165,12 @@ fn auth<T: AsyncCisClientTrait + 'static>(
     slack_uri_data: web::Data<SlackUriData>,
     session: Session,
 ) -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
-    let code = query.code.clone();
     let state = CsrfToken::new(query.state.clone());
     let slack_token_url = format!(
         "{}{}&code={}",
         TOKEN_URL,
-        slack_uri_data.slack_auth_params.to_string(),
-        code
+        slack_uri_data.slack_auth_params,
+        query.code.clone()
     );
 
     // Check state token from im_crsf_state
@@ -249,8 +246,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                         update_slack(
                             format!(
                                 "{}{}",
-                                slack_uri_data.direct_message_uri.to_string(),
-                                scu_data.channel.id
+                                slack_uri_data.direct_message_uri, scu_data.channel.id
                             ),
                             scu_data.user.name.clone(),
                             profile,
@@ -279,7 +275,6 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
     slack: &Slack,
     whoami: &WhoAmI,
     secret: &[u8],
-    ttl_cache: Arc<RwLock<TtlCache<String, String>>>,
     cis_client: T,
 ) -> impl HttpServiceFactory {
     let slack_client_id = ClientId::new(slack.client_id.clone());
@@ -309,7 +304,7 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
             auth_url.clone(),
             Some(identity_token_url),
         )
-        .add_scope(Scope::new(slack.identity_scope.to_string()))
+        .add_scope(Scope::new(slack.identity_scope.clone()))
         .set_redirect_url(RedirectUrl::new(
             Url::parse(&slack.identity_redirect_uri).expect("Invalid redirect URL"),
         )),
@@ -321,7 +316,7 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
             auth_url,
             Some(im_token_url),
         )
-        .add_scope(Scope::new(slack.im_scope.to_string()))
+        .add_scope(Scope::new(slack.im_scope.clone()))
         .set_redirect_url(RedirectUrl::new(
             Url::parse(&slack.im_redirect_uri).expect("Invalid redirect URL"),
         )),
@@ -332,7 +327,7 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
     };
     let slack_uri_data: SlackUriData = SlackUriData {
         slack_auth_params: im_slack_auth_params,
-        direct_message_uri: slack.direct_message_uri.to_string(),
+        direct_message_uri: slack.direct_message_uri.clone(),
     };
 
     web::scope("/slack/")
@@ -355,7 +350,6 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
         )
         .data(client_data_handlers)
         .data(cis_client)
-        .data(ttl_cache)
         .data(slack_uri_data)
         .service(web::resource("/add").route(web::get().to(redirect_identity)))
         .service(web::resource("/add/im").route(web::get().to(redirect_im)))
