@@ -110,6 +110,18 @@ pub struct SlackClientHandlers {
     identity: Arc<BasicClient>,
 }
 
+fn send_response(url: &str) -> HttpResponse {
+    HttpResponse::Found()
+        .header(http::header::LOCATION, url)
+        .finish()
+}
+
+fn send_error_response() -> HttpResponse {
+    HttpResponse::Found()
+        .header(http::header::LOCATION, "/e?identityAdded=error")
+        .finish()
+}
+
 /**
  * First redirect that handles getting authorization for identity scopes
  */
@@ -117,11 +129,7 @@ fn redirect_identity(client: web::Data<SlackClientHandlers>, session: Session) -
     let (authorize_url, csrf_state) = client.identity.authorize_url(CsrfToken::new_random);
     session
         .set("identity_csrf_state", csrf_state.secret().clone())
-        .map(|_| {
-            HttpResponse::Found()
-                .header(http::header::LOCATION, authorize_url.to_string())
-                .finish()
-        })
+        .map(|_| send_response(&authorize_url.to_string()))
 }
 
 /**
@@ -136,26 +144,18 @@ fn redirect_im(
     let state = CsrfToken::new(query.state.clone());
     if let Some(ref must_state) = session.get::<String>("identity_csrf_state").unwrap() {
         if must_state != state.secret() {
-            return session.set("im_csrf_state", "").map(|_| {
-                HttpResponse::Found()
-                    .header(http::header::LOCATION, "/e?identityAdded=error")
-                    .finish()
-            });
+            return session
+                .set("im_csrf_state", "")
+                .map(|_| send_error_response());
         }
     } else {
-        return session.set("im_csrf_state", "").map(|_| {
-            HttpResponse::Found()
-                .header(http::header::LOCATION, "/e?identityAdded=error")
-                .finish()
-        });
+        return session
+            .set("im_csrf_state", "")
+            .map(|_| send_error_response());
     }
     session
         .set("im_csrf_state", csrf_state.secret().clone())
-        .map(|_| {
-            HttpResponse::Found()
-                .header(http::header::LOCATION, authorize_url.to_string())
-                .finish()
-        })
+        .map(|_| send_response(&authorize_url.to_string()))
 }
 
 fn auth<T: AsyncCisClientTrait + 'static>(
@@ -176,18 +176,10 @@ fn auth<T: AsyncCisClientTrait + 'static>(
     // Check state token from im_crsf_state
     if let Some(ref must_state) = session.get::<String>("im_csrf_state").unwrap() {
         if must_state != state.secret() {
-            return Box::new(future::ok(
-                HttpResponse::Found()
-                    .header(http::header::LOCATION, "/e?identityAdded=error")
-                    .finish(),
-            ));
+            return Box::new(future::ok(send_error_response()));
         }
     } else {
-        return Box::new(future::ok(
-            HttpResponse::Found()
-                .header(http::header::LOCATION, "/e?identityAdded=error")
-                .finish(),
-        ));
+        return Box::new(future::ok(send_error_response()));
     }
     let get = cis_client.clone();
     let get_uid = user_id.user_id.clone();
@@ -263,11 +255,7 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                     .update_user(&user_id.user_id, profile)
                     .map_err(Into::into)
             })
-            .and_then(|_| {
-                HttpResponse::Found()
-                    .header(http::header::LOCATION, "/e?identityAdded=slack")
-                    .finish()
-            }),
+            .and_then(|_| send_response("/e?identityAdded=slack")),
     )
 }
 

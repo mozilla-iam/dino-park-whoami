@@ -28,6 +28,7 @@ fn main() -> Result<(), Error> {
     info!("starting dino-park-whoami");
     let s = settings::Settings::new()?;
     let client = cis_client::CisClient::from_settings(&s.cis)?;
+    info!("initialized cis_client");
     let secret = base64::decode(&s.whoami.secret)?;
     let ttl_cache = Arc::new(RwLock::new(TtlCache::<String, String>::new(2000)));
 
