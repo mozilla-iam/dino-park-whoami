@@ -92,7 +92,7 @@ pub fn update_slack(
     let now = &Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let mut key_val: String = String::from("EA#SLACK#n");
     if let Some(KeyValue(ref mut values)) = &mut profile.uris.values {
-        for (k, _) in values.into_iter() {
+        for (k, _) in values.iter_mut() {
             if k.contains("#SLACK#") {
                 let last_char = k.chars().last().unwrap();
                 key_val = String::from("EA#SLACK#");
