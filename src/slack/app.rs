@@ -328,7 +328,7 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
             CookieSession::private(secret)
                 .name("dpw_s")
                 .path("/whoami/slack")
-                .domain("1c2529c8.ngrok.io") //whoami.domain.clone())
+                .domain(whoami.domain.clone())
                 .same_site(SameSite::Lax)
                 .http_only(true)
                 .secure(false)
