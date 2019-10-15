@@ -117,9 +117,7 @@ fn send_response(url: &str) -> HttpResponse {
 }
 
 fn send_error_response() -> HttpResponse {
-    HttpResponse::Found()
-        .header(http::header::LOCATION, "/e?identityAdded=error")
-        .finish()
+    send_response("/e?identityAdded=error")
 }
 
 /**
@@ -330,7 +328,7 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
             CookieSession::private(secret)
                 .name("dpw_s")
                 .path("/whoami/slack")
-                .domain(whoami.domain.clone())
+                .domain("1c2529c8.ngrok.io") //whoami.domain.clone())
                 .same_site(SameSite::Lax)
                 .http_only(true)
                 .secure(false)
