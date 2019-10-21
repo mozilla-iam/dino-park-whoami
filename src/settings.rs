@@ -22,6 +22,7 @@ pub struct Slack {
     pub identity_scope: String,
     pub identity_redirect_uri: String,
     pub direct_message_uri: String,
+    pub team_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

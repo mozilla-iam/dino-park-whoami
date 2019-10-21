@@ -50,6 +50,7 @@ pub struct SlackUser {
 pub struct SlackUriData {
     identity_slack_auth_params: String,
     direct_message_uri: String,
+    team_id: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -91,10 +92,11 @@ fn auth_identity<T: AsyncCisClientTrait + 'static>(
 ) -> Box<dyn Future<Item = HttpResponse, Error = Error>> {
     let state = CsrfToken::new(query.state.clone());
     let slack_token_url = format!(
-        "{}{}&code={}",
+        "{}{}&code={}&team={}",
         TOKEN_URL,
         slack_uri_data.identity_slack_auth_params,
-        query.code.clone()
+        query.code.clone(),
+        slack_uri_data.team_id
     );
     // Check state token from im_crsf_state
     if let Some(ref must_state) = session.get::<String>("identity_csrf_state").unwrap() {
@@ -177,6 +179,7 @@ pub fn slack_app<T: AsyncCisClientTrait + 'static>(
     let slack_uri_data: SlackUriData = SlackUriData {
         identity_slack_auth_params,
         direct_message_uri: slack.direct_message_uri.clone(),
+        team_id: slack.team_id.clone(),
     };
 
     web::scope("/slack/")
