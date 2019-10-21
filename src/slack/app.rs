@@ -16,6 +16,7 @@ use actix_web::Responder;
 use cis_client::getby::GetBy;
 use cis_client::AsyncCisClientTrait;
 use cis_profile::schema::Profile;
+use failure::format_err;
 use futures::future;
 use futures::Future;
 use futures::IntoFuture;
@@ -111,6 +112,7 @@ fn auth_identity<T: AsyncCisClientTrait + 'static>(
 
     let get = cis_client.clone();
     let get_uid = user_id.user_id.clone();
+    let enforced_team_id = slack_uri_data.team_id.clone();
     // Begin slack requests by grabbing the user_id, and access_token
     Box::new(
         Client::default()
@@ -119,6 +121,13 @@ fn auth_identity<T: AsyncCisClientTrait + 'static>(
             .send()
             .map_err(Into::into)
             .and_then(move |mut res| res.json::<SlackUserTokenResponse>().map_err(Into::into))
+            .and_then(move |sur| {
+                if sur.team_id == enforced_team_id {
+                    Ok(sur)
+                } else {
+                    Err(format_err!("slack team_id missmatch").into())
+                }
+            })
             .and_then(move |sur| {
                 // Now that we have the access_token, user data, and channel id, go put it in the profile
                 get.get_user_by(&get_uid, &GetBy::UserId, None)
