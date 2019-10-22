@@ -20,6 +20,7 @@ use failure::format_err;
 use futures::future;
 use futures::Future;
 use futures::IntoFuture;
+use log::error;
 use oauth2::basic::BasicClient;
 use oauth2::prelude::*;
 use oauth2::AuthUrl;
@@ -102,11 +103,11 @@ fn auth_identity<T: AsyncCisClientTrait + 'static>(
     // Check state token from im_crsf_state
     if let Some(ref must_state) = session.get::<String>("identity_csrf_state").unwrap() {
         if must_state != state.secret() {
-            println!("Error: Identity csrf state mismatch");
+            error!("Error: Identity csrf state mismatch");
             return Box::new(future::ok(send_error_response()));
         }
     } else {
-        println!("Error: Missing identity csrf state");
+        error!("Error: Missing identity csrf state");
         return Box::new(future::ok(send_error_response()));
     }
 
