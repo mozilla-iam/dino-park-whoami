@@ -83,6 +83,28 @@ pub fn update_bugzilla(
     Ok(profile)
 }
 
+pub fn update_slack(
+    slack_uri: String,
+    slack_username: String,
+    mut profile: Profile,
+    store: &SecretStore,
+) -> Result<Profile, Error> {
+    let now = &Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+    let mut key_val: String = String::from("EA#SLACK#n");
+    if let Some(KeyValue(ref mut values)) = &mut profile.uris.values {
+        for (k, _) in values.iter_mut() {
+            if k.contains("#SLACK#") {
+                let last_char = k.chars().last().unwrap();
+                key_val = String::from("EA#SLACK#");
+                key_val.push(last_char);
+            }
+        }
+    }
+    let uris_kv_pairs = vec![(key_val, format!("{}#{}", slack_uri, slack_username))];
+    update_and_sign_values_field(&mut profile.uris, uris_kv_pairs, store, &now)?;
+    Ok(profile)
+}
+
 fn update_and_sign_values_field(
     field: &mut StandardAttributeValues,
     kv_pairs: Vec<(String, String)>,
