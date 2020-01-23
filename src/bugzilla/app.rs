@@ -44,7 +44,7 @@ pub struct Auth {
 
 #[derive(Deserialize, Debug)]
 pub struct BugZillaUser {
-    id: String,
+    id: i64,
     login: String,
     nick: Option<String>,
 }
@@ -112,9 +112,15 @@ fn auth<T: AsyncCisClientTrait + 'static>(
                 );
                 get.get_user_by(&get_uid, &GetBy::UserId, None)
                     .and_then(move |profile: Profile| {
-                        update_bugzilla(j.id, j.login, j.nick, profile, get.get_secret_store())
-                            .into_future()
-                            .map_err(Into::into)
+                        update_bugzilla(
+                            j.id.to_string(),
+                            j.login,
+                            j.nick,
+                            profile,
+                            get.get_secret_store(),
+                        )
+                        .into_future()
+                        .map_err(Into::into)
                     })
                     .map_err(Into::into)
             })
