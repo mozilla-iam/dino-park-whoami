@@ -1,32 +1,30 @@
 export RUSTUP_HOME=/usr/local/rustup
 export CARGO_HOME=/usr/local/cargo
 export PATH=/usr/local/cargo/bin:$PATH
-export RUST_VERSION=1.36.0
-
+export RUST_VERSION=1.41.0
 
 set -eux
-dpkgArch="$(dpkg --print-architecture)"; \
-case "${dpkgArch##*-}" in \
-    amd64) rustArch='x86_64-unknown-linux-gnu'; rustupSha256='a46fe67199b7bcbbde2dcbc23ae08db6f29883e260e23899a88b9073effc9076' ;; \
-    armhf) rustArch='armv7-unknown-linux-gnueabihf'; rustupSha256='6af5abbbae02e13a9acae29593ec58116ab0e3eb893fa0381991e8b0934caea1' ;; \
-    arm64) rustArch='aarch64-unknown-linux-gnu'; rustupSha256='51862e576f064d859546cca5f3d32297092a850861e567327422e65b60877a1b' ;; \
-    i386) rustArch='i686-unknown-linux-gnu'; rustupSha256='91456c3e6b2a3067914b3327f07bc182e2a27c44bff473263ba81174884182be' ;; \
-    *) echo >&2 "unsupported architecture: ${dpkgArch}"; exit 1 ;; \
-esac; \
-url="https://static.rust-lang.org/rustup/archive/1.18.3/${rustArch}/rustup-init"; \
-wget "$url"; \
-echo "${rustupSha256} *rustup-init" | sha256sum -c -; \
-chmod +x rustup-init; \
-./rustup-init -y --no-modify-path --default-toolchain $RUST_VERSION; \
-rm rustup-init; \
-chmod -R a+w $RUSTUP_HOME $CARGO_HOME; \
-rustup --version; \
-cargo --version; \
-rustc --version;
 
-rustup target add x86_64-unknown-linux-musl
-apt-get update
-apt-get install -y musl-tools
+dpkgArch="$(dpkg --print-architecture)"
+case "${dpkgArch##*-}" in
+    amd64) rustArch='x86_64-unknown-linux-gnu'; rustupSha256='e68f193542c68ce83c449809d2cad262cc2bbb99640eb47c58fc1dc58cc30add' ;;
+    armhf) rustArch='armv7-unknown-linux-gnueabihf'; rustupSha256='7c1c329a676e50c287d8183b88f30cd6afd0be140826a9fbbc0e3d717fab34d7' ;;
+    arm64) rustArch='aarch64-unknown-linux-gnu'; rustupSha256='d861cc86594776414de001b96964be645c4bfa27024052704f0976dc3aed1b18' ;;
+    i386) rustArch='i686-unknown-linux-gnu'; rustupSha256='89f1f797dca2e5c1d75790c3c6b7be0ee473a7f4eca9663e623a41272a358da0' ;;
+    *) echo >&2 "unsupported architecture: ${dpkgArch}"; exit 1 ;;
+esac
+url="https://static.rust-lang.org/rustup/archive/1.20.2/${rustArch}/rustup-init"
+wget "$url"
+echo "${rustupSha256} *rustup-init" | sha256sum -c -
+chmod +x rustup-init
+./rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION
+rm rustup-init
+chmod -R a+w $RUSTUP_HOME $CARGO_HOME
+rustup --version
+cargo --version
+rustc --version
+
+rustup target add x86_64-unknown-linux-gnu
 HELM_INSTALL_DIR=/bin
 curl https://raw.githubusercontent.com/helm/helm/master/scripts/get | bash
 curl -L -o myke https://github.com/fiji-flo/myke/releases/download/0.9.11/myke-0.9.11-x86_64-unknown-linux-musl
