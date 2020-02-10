@@ -16,7 +16,8 @@ pub fn healthz_app() -> impl HttpServiceFactory {
                 .allowed_methods(vec!["GET", "HEAD"])
                 .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
                 .allowed_header(http::header::CONTENT_TYPE)
-                .max_age(3600),
+                .max_age(3600)
+                .finish(),
         )
         .service(web::resource("").to(healthz))
 }

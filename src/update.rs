@@ -1,4 +1,4 @@
-use chrono::SecondsFormat;
+use chrono::DateTime;
 use chrono::Utc;
 use cis_profile::crypto::SecretStore;
 use cis_profile::crypto::Signer;
@@ -24,7 +24,7 @@ pub fn update_github(
     mut profile: Profile,
     store: &SecretStore,
 ) -> Result<Profile, Error> {
-    let now = &Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+    let now = &Utc::now();
     update_and_sign_string_field(
         &mut profile.identities.github_id_v3,
         github_v3_id,
@@ -61,7 +61,7 @@ pub fn update_bugzilla(
     mut profile: Profile,
     store: &SecretStore,
 ) -> Result<Profile, Error> {
-    let now = &Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+    let now = &Utc::now();
     update_and_sign_string_field(
         &mut profile.identities.bugzilla_mozilla_org_id,
         bugzilla_id,
@@ -87,7 +87,7 @@ fn update_and_sign_values_field(
     field: &mut StandardAttributeValues,
     kv_pairs: Vec<(String, String)>,
     store: &SecretStore,
-    now: &str,
+    now: &DateTime<Utc>,
 ) -> Result<(), Error> {
     if let Some(KeyValue(ref mut values)) = &mut field.values {
         for (k, v) in kv_pairs.into_iter() {
@@ -101,7 +101,7 @@ fn update_and_sign_values_field(
     if field.metadata.display.is_none() {
         field.metadata.display = Some(Display::Staff);
     }
-    field.metadata.last_modified = now.to_owned();
+    field.metadata.last_modified = *now;
     field.signature.publisher.name = PublisherAuthority::Mozilliansorg;
     store.sign_attribute(field)
 }
@@ -110,13 +110,13 @@ fn update_and_sign_string_field(
     field: &mut StandardAttributeString,
     value: String,
     store: &SecretStore,
-    now: &str,
+    now: &DateTime<Utc>,
 ) -> Result<(), Error> {
     field.value = Some(value);
     if field.metadata.display.is_none() {
         field.metadata.display = Some(Display::Staff);
     }
-    field.metadata.last_modified = now.to_owned();
+    field.metadata.last_modified = *now;
     field.signature.publisher.name = PublisherAuthority::Mozilliansorg;
     store.sign_attribute(field)
 }
