@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate serde_derive;
-
 mod bugzilla;
 mod github;
 mod healthz;
@@ -40,6 +37,7 @@ async fn main() -> std::io::Result<()> {
     let provider = Provider::from_issuer("https://auth.mozilla.auth0.com/")
         .map_err(map_io_err)
         .await?;
+
     HttpServer::new(move || {
         let scope_middleware = ScopeAndUserAuth {
             checker: provider.clone(),

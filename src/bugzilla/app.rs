@@ -15,7 +15,6 @@ use cis_client::AsyncCisClientTrait;
 use dino_park_gate::scope::ScopeAndUser;
 use log::info;
 use oauth2::basic::BasicClient;
-use oauth2::prelude::*;
 use oauth2::AuthUrl;
 use oauth2::ClientId;
 use oauth2::ClientSecret;
@@ -24,8 +23,8 @@ use oauth2::RedirectUrl;
 use oauth2::Scope;
 use oauth2::TokenUrl;
 use reqwest::Client;
+use serde::Deserialize;
 use std::sync::Arc;
-use url::Url;
 
 const AUTH_PATH: &str = "/oauth/authorize";
 const TOKEN_PATH: &str = "/oauth/access_token";
@@ -45,7 +44,10 @@ pub struct BugZillaUser {
 }
 
 async fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
-    let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random);
+    let (authorize_url, csrf_state) = client
+        .authorize_url(CsrfToken::new_random)
+        .add_scope(Scope::new("user:read".to_string()))
+        .url();
     info!("settting: {}", csrf_state.secret());
     session
         .set("csrf_state", csrf_state.secret().clone())
@@ -121,14 +123,12 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
 ) -> impl HttpServiceFactory {
     let bugzilla_client_id = ClientId::new(bugzilla.client_id.clone());
     let bugzilla_client_secret = ClientSecret::new(bugzilla.client_secret.clone());
-    let auth_url = AuthUrl::new(
-        Url::parse(&format!("{}{}", &bugzilla.base_url, AUTH_PATH))
-            .expect("Invalid authorization endpoint URL"),
-    );
-    let token_url = TokenUrl::new(
-        Url::parse(&format!("{}{}", &bugzilla.base_url, TOKEN_PATH))
-            .expect("Invalid token endpoint URL"),
-    );
+    let auth_url = AuthUrl::new(format!("{}{}", &bugzilla.base_url, AUTH_PATH))
+        .expect("Invalid authorization endpoint URL");
+    let token_url = TokenUrl::new(format!("{}{}", &bugzilla.base_url, TOKEN_PATH))
+        .expect("Invalid token endpoint URL");
+    let redirect_url = RedirectUrl::new(format!("https://{}/whoami/bugzilla/auth", whoami.domain))
+        .expect("Invalid redirect URL");
 
     let client = Arc::new(
         BasicClient::new(
@@ -137,11 +137,7 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
             auth_url,
             Some(token_url),
         )
-        .add_scope(Scope::new("user:read".to_string()))
-        .set_redirect_url(RedirectUrl::new(
-            Url::parse(&format!("https://{}/whoami/bugzilla/auth", whoami.domain))
-                .expect("Invalid redirect URL"),
-        )),
+        .set_redirect_url(redirect_url),
     );
 
     web::scope("/bugzilla/")

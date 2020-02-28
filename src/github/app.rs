@@ -16,7 +16,8 @@ use dino_park_gate::scope::ScopeAndUser;
 use failure::Error;
 use log::info;
 use oauth2::basic::BasicClient;
-use oauth2::prelude::*;
+use oauth2::reqwest::async_http_client;
+use oauth2::AsyncCodeTokenRequest;
 use oauth2::AuthUrl;
 use oauth2::AuthorizationCode;
 use oauth2::ClientId;
@@ -26,11 +27,12 @@ use oauth2::RedirectUrl;
 use oauth2::TokenResponse;
 use oauth2::TokenUrl;
 use reqwest::Client;
+use serde::Deserialize;
+use serde::Serialize;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
 use ttl_cache::TtlCache;
-use url::Url;
 
 const AUTH_URL: &str = "https://github.com/login/oauth/authorize";
 const TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
@@ -59,7 +61,7 @@ pub struct GitHubUser {
 
 async fn id_to_username(
     id: web::Path<String>,
-    gtihub_auth_params: web::Data<GitHub>,
+    github_auth_params: web::Data<GitHub>,
     cache: web::Data<Arc<RwLock<TtlCache<String, String>>>>,
 ) -> Result<HttpResponse, Error> {
     if let Some(username) = cache.read().ok().and_then(|c| c.get(&*id).cloned()) {
@@ -71,8 +73,8 @@ async fn id_to_username(
         let res = Client::default()
             .get(&format!("{}/{}", USER_URL, id))
             .basic_auth(
-                &gtihub_auth_params.client_id,
-                Some(&gtihub_auth_params.client_secret),
+                &github_auth_params.client_id,
+                Some(&github_auth_params.client_secret),
             )
             .header(http::header::USER_AGENT, "whoami")
             .send()
@@ -90,7 +92,7 @@ async fn id_to_username(
 }
 
 async fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
-    let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random);
+    let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random).url();
     info!("settting: {}", csrf_state.secret());
     session
         .set("csrf_state", csrf_state.secret().clone())
@@ -123,7 +125,10 @@ async fn auth<T: AsyncCisClientTrait + 'static>(
             .header(http::header::LOCATION, "/e?identityAdded=error")
             .finish());
     }
-    let token_res = client.exchange_code(code);
+    let token_res = client
+        .exchange_code(code)
+        .request_async(async_http_client)
+        .await;
 
     if let Ok(token) = token_res {
         let get = cis_client.clone();
@@ -167,8 +172,10 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
 ) -> impl HttpServiceFactory {
     let github_client_id = ClientId::new(github.client_id.clone());
     let github_client_secret = ClientSecret::new(github.client_secret.clone());
-    let auth_url = AuthUrl::new(Url::parse(AUTH_URL).expect("Invalid authorization endpoint URL"));
-    let token_url = TokenUrl::new(Url::parse(TOKEN_URL).expect("Invalid token endpoint URL"));
+    let auth_url = AuthUrl::new(AUTH_URL.to_string()).expect("Invalid authorization endpoint URL");
+    let token_url = TokenUrl::new(TOKEN_URL.to_string()).expect("Invalid token endpoint URL");
+    let redirect_url = RedirectUrl::new(format!("https://{}/whoami/github/auth", whoami.domain))
+        .expect("Invalid redirect URL");
 
     let client = Arc::new(
         BasicClient::new(
@@ -177,10 +184,7 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
             auth_url,
             Some(token_url),
         )
-        .set_redirect_url(RedirectUrl::new(
-            Url::parse(&format!("https://{}/whoami/github/auth", whoami.domain))
-                .expect("Invalid redirect URL"),
-        )),
+        .set_redirect_url(redirect_url),
     );
 
     web::scope("/github/")
