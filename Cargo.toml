@@ -1,18 +1,19 @@
 [package]
 name = "dino-park-whoami"
 version = "0.2.0"
-authors = ["Florian Merz <flomerz@gmail.com>"]
+authors = ["Florian Merz <me@fiji-flo.de>"]
 edition = "2018"
 
 [features]
 default = []
 localuserscope = ["dino_park_gate/localuserscope"]
 
-
 [dependencies]
-dino_park_gate = { git = "https://github.com/mozilla-iam/dino-park-gate", tag = "0.5.1", version = "0.5.1" }
-cis_client = { git = "https://github.com/mozilla-iam/cis_client-rust", tag = "0.5.0", version = "0.5.0", features = ["sync"] }
-cis_profile = { git = "https://github.com/mozilla-iam/cis_profile-rust", tag = "0.3.2", version = "0.3.2" }
+cis_client = { git = "https://github.com/mozilla-iam/cis_client-rust", tag = "0.6.1", version = "0.6.1", features = ["sync"] }
+cis_profile = { git = "https://github.com/mozilla-iam/cis_profile-rust", tag = "0.4.0", version = "0.4.0", features = ["aws", "vendored"] }
+dino_park_gate = { git = "https://github.com/mozilla-iam/dino-park-gate", tag = "0.6.0", version = "0.6.0" }
+dino_park_trust = { git = "https://github.com/mozilla-iam/dino-park-trust", tag = "0.0.5", version = "0.0.5" }
+dino_park_guard = { git = "https://github.com/mozilla-iam/dino-park-guard", tag = "0.0.1", version = "0.0.1" }
 shared-expiry-get = "0.1.0"
 actix-web = "2.0"
 actix-rt = "1.0"
@@ -20,7 +21,7 @@ actix-cors = "0.2"
 futures = "0.3"
 oauth2 = { version = "3.0.0-alpha.9", features = ["futures-03", "reqwest-010"], default-features = false }
 url = "2.1"
-base64 = "0.11"
+base64 = "0.12"
 rand = "0.7"
 actix-session = "0.3"
 failure = "0.1"

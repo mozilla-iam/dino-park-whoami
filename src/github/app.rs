@@ -1,3 +1,4 @@
+use crate::error::ApiError;
 use crate::settings::GitHub;
 use crate::settings::WhoAmI;
 use crate::update::update_github;
@@ -9,10 +10,10 @@ use actix_web::dev::HttpServiceFactory;
 use actix_web::http;
 use actix_web::web;
 use actix_web::HttpResponse;
-use actix_web::Responder;
 use cis_client::getby::GetBy;
 use cis_client::AsyncCisClientTrait;
 use dino_park_gate::scope::ScopeAndUser;
+use dino_park_guard::guard;
 use failure::Error;
 use log::info;
 use oauth2::basic::BasicClient;
@@ -59,6 +60,7 @@ pub struct GitHubUser {
     node_id: String,
 }
 
+#[guard(Public)]
 async fn id_to_username(
     id: web::Path<String>,
     github_auth_params: web::Data<GitHub>,
@@ -91,7 +93,11 @@ async fn id_to_username(
     }
 }
 
-async fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl Responder {
+#[guard(Authenticated)]
+async fn redirect(
+    client: web::Data<Arc<BasicClient>>,
+    session: Session,
+) -> Result<HttpResponse, ApiError> {
     let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random).url();
     info!("settting: {}", csrf_state.secret());
     session
@@ -101,15 +107,17 @@ async fn redirect(client: web::Data<Arc<BasicClient>>, session: Session) -> impl
                 .header(http::header::LOCATION, authorize_url.to_string())
                 .finish()
         })
+        .map_err(|_| ApiError::Unknown)
 }
 
+#[guard(Authenticated)]
 async fn auth<T: AsyncCisClientTrait + 'static>(
     client: web::Data<Arc<BasicClient>>,
     scope_and_user: ScopeAndUser,
     cis_client: web::Data<T>,
     query: web::Query<Auth>,
     session: Session,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, ApiError> {
     let code = AuthorizationCode::new(query.code.clone());
     let state = CsrfToken::new(query.state.clone());
     info!("remote: {}", state.secret());
@@ -138,9 +146,10 @@ async fn auth<T: AsyncCisClientTrait + 'static>(
             .bearer_auth(token.access_token().secret())
             .header(http::header::USER_AGENT, "whoami")
             .send()
-            .await?;
+            .await
+            .map_err(Error::from)?;
         info!("status: {}", res.status());
-        let j = res.json::<GitHubUser>().await?;
+        let j = res.json::<GitHubUser>().await.map_err(Error::from)?;
         info!("login: {}, id: {}", j.login, j.node_id);
         let profile = get.get_user_by(&get_uid, &GetBy::UserId, None).await?;
         let profile = update_github(

@@ -1,4 +1,5 @@
 mod bugzilla;
+mod error;
 mod github;
 mod healthz;
 mod settings;
@@ -12,7 +13,6 @@ use actix_web::App;
 use actix_web::HttpServer;
 use dino_park_gate::provider::Provider;
 use dino_park_gate::scope::ScopeAndUserAuth;
-use futures::TryFutureExt;
 use log::info;
 use std::io::Error;
 use std::io::ErrorKind;
@@ -30,18 +30,18 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     info!("starting dino-park-whoami");
     let s = settings::Settings::new().map_err(map_io_err)?;
-    let client = cis_client::CisClient::from_settings(&s.cis).map_err(map_io_err)?;
+    let client = cis_client::CisClient::from_settings(&s.cis)
+        .await
+        .map_err(map_io_err)?;
     info!("initialized cis_client");
     let secret = base64::decode(&s.whoami.secret).map_err(map_io_err)?;
     let ttl_cache = Arc::new(RwLock::new(TtlCache::<String, String>::new(2000)));
     let provider = Provider::from_issuer("https://auth.mozilla.auth0.com/")
-        .map_err(map_io_err)
-        .await?;
+        .await
+        .map_err(map_io_err)?;
 
     HttpServer::new(move || {
-        let scope_middleware = ScopeAndUserAuth {
-            checker: provider.clone(),
-        };
+        let scope_middleware = ScopeAndUserAuth::new(provider.clone()).public();
         App::new()
             .wrap(Logger::default().exclude("/healthz"))
             .service(
