@@ -2,7 +2,6 @@ use crate::error::ApiError;
 use crate::settings::BugZilla;
 use crate::settings::WhoAmI;
 use crate::update::update_bugzilla;
-use actix_cors::Cors;
 use actix_session::CookieSession;
 use actix_session::Session;
 use actix_web::cookie::SameSite;
@@ -151,21 +150,13 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
 
     web::scope("/bugzilla/")
         .wrap(
-            Cors::new()
-                .allowed_methods(vec!["GET", "POST"])
-                .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
-                .allowed_header(http::header::CONTENT_TYPE)
-                .max_age(3600)
-                .finish(),
-        )
-        .wrap(
             CookieSession::private(secret)
                 .name("dpw_bz")
                 .path("/whoami/bugzilla")
                 .domain(whoami.domain.clone())
                 .same_site(SameSite::Lax)
                 .http_only(true)
-                .secure(false)
+                .secure(true)
                 .max_age(300),
         )
         .data(client)
