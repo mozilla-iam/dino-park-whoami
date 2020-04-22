@@ -1,12 +1,14 @@
 mod bugzilla;
 mod error;
 mod github;
+mod google;
 mod healthz;
 mod settings;
 mod update;
 
 use crate::bugzilla::app::bugzilla_app;
 use crate::github::app::github_app;
+use crate::google::app::google_app;
 use actix_web::middleware::Logger;
 use actix_web::web;
 use actix_web::App;
@@ -39,6 +41,9 @@ async fn main() -> std::io::Result<()> {
     let provider = Provider::from_issuer("https://auth.mozilla.auth0.com/")
         .await
         .map_err(map_io_err)?;
+    let google_provider = Provider::from_issuer("https://accounts.google.com/")
+        .await
+        .map_err(map_io_err)?;
 
     HttpServer::new(move || {
         let scope_middleware = ScopeAndUserAuth::new(provider.clone()).public();
@@ -56,6 +61,13 @@ async fn main() -> std::io::Result<()> {
                     ))
                     .service(bugzilla_app(
                         &s.providers.bugzilla,
+                        &s.whoami,
+                        &secret,
+                        client.clone(),
+                    ))
+                    .service(google_app(
+                        &s.providers.google,
+                        google_provider.clone(),
                         &s.whoami,
                         &secret,
                         client.clone(),

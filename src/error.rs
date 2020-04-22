@@ -18,6 +18,8 @@ pub enum ApiError {
     ScopeError(TrustError),
     #[fail(display = "Groups scope Error: {}", _0)]
     GroupsScopeError(GroupsTrustError),
+    #[fail(display = "Provider Error")]
+    ProviderError,
 }
 
 fn to_json_error(e: &impl Display) -> Value {
@@ -48,6 +50,10 @@ impl ResponseError for ApiError {
             Self::GenericBadRequest(ref e) => {
                 warn!("{}", e);
                 HttpResponse::BadRequest().finish()
+            }
+            Self::ProviderError => {
+                warn!("Provider Error");
+                HttpResponse::InternalServerError().finish()
             }
             Self::ScopeError(ref e) => HttpResponse::Forbidden().json(to_json_error(e)),
             Self::GroupsScopeError(ref e) => HttpResponse::Forbidden().json(to_json_error(e)),
