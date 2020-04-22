@@ -54,6 +54,29 @@ pub fn update_github(
     Ok(profile)
 }
 
+pub fn update_google(
+    google_id: String,
+    google_email: String,
+    mut profile: Profile,
+    store: &SecretStore,
+) -> Result<Profile, Error> {
+    let now = &Utc::now();
+    update_and_sign_string_field(
+        &mut profile.identities.google_oauth2_id,
+        google_id,
+        store,
+        &now,
+    )?;
+    update_and_sign_string_field(
+        &mut profile.identities.google_primary_email,
+        google_email,
+        store,
+        &now,
+    )?;
+
+    Ok(profile)
+}
+
 pub fn update_bugzilla(
     bugzilla_id: String,
     bugzilla_email: String,
