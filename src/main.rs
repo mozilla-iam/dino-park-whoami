@@ -36,9 +36,7 @@ async fn main() -> std::io::Result<()> {
     info!("initialized cis_client");
     let secret = base64::decode(&s.whoami.secret).map_err(map_io_err)?;
     let ttl_cache = Arc::new(RwLock::new(TtlCache::<String, String>::new(2000)));
-    let provider = Provider::from_issuer("https://auth.mozilla.auth0.com/")
-        .await
-        .map_err(map_io_err)?;
+    let provider = Provider::from_issuer(&s.auth).await.map_err(map_io_err)?;
 
     HttpServer::new(move || {
         let scope_middleware = ScopeAndUserAuth::new(provider.clone()).public();

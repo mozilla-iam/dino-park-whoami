@@ -30,6 +30,7 @@ pub struct WhoAmI {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
+    pub auth: String,
     pub providers: Providers,
     pub cis: CisSettings,
     pub whoami: WhoAmI,
@@ -40,7 +41,7 @@ impl Settings {
         let file = env::var("DPW_SETTINGS").unwrap_or_else(|_| String::from(".settings"));
         let mut s = Config::new();
         s.merge(File::with_name(&file))?;
-        s.merge(Environment::new().separator("__"))?;
+        s.merge(Environment::new().separator("__").prefix("dp"))?;
         s.try_into()
     }
 }

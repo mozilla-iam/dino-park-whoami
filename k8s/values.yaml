@@ -1,2 +1,4 @@
 name: dino-park-whoami
 rev: latest
+settings:
+  auth: https://auth.mozilla.auth0.com/
