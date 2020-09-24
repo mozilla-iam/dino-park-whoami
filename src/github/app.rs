@@ -64,7 +64,7 @@ async fn id_to_username(
     id: web::Path<String>,
     github_auth_params: web::Data<GitHub>,
     cache: web::Data<Arc<RwLock<TtlCache<String, String>>>>,
-) -> Result<HttpResponse, Error> {
+) -> Result<HttpResponse, ApiError> {
     if let Some(username) = cache.read().ok().and_then(|c| c.get(&*id).cloned()) {
         info!("serving {} → {} from cache", &*id, &username);
         Ok(HttpResponse::Ok().json(GitHubUsername { username }))
@@ -79,9 +79,13 @@ async fn id_to_username(
             )
             .header(http::header::USER_AGENT, "whoami")
             .send()
-            .await?;
+            .await
+            .map_err(|_| ApiError::Unknown)?;
         info!("status: {}", res.status());
-        let user = res.json::<GitHubUser>().await?;
+        let user = res
+            .json::<GitHubUser>()
+            .await
+            .map_err(|_| ApiError::Unknown)?;
         if let Ok(mut c) = cache.write() {
             info!("caching {} → {}", &cache_id, &user.login);
             c.insert(cache_id, user.login.clone(), CACHE_DURATION);

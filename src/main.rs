@@ -24,7 +24,7 @@ fn map_io_err(e: impl Into<failure::Error>) -> Error {
     Error::new(ErrorKind::Other, e.into())
 }
 
-#[actix_rt::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
