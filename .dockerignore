@@ -5,4 +5,4 @@
 node_modules/
 /proxy
 **/.terraform/
-!target/x86_64-unknown-linux-musl/release/dino-park-whoami
+!target/release/dino-park-whoami
