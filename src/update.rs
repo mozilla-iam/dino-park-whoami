@@ -29,26 +29,26 @@ pub fn update_github(
         &mut profile.identities.github_id_v3,
         github_v3_id,
         store,
-        &now,
+        now,
     )?;
     update_and_sign_string_field(
         &mut profile.identities.github_id_v4,
         github_v4_id,
         store,
-        &now,
+        now,
     )?;
     update_and_sign_values_field(
         &mut profile.usernames,
         vec![(create_usernames_key("GITHUB"), github_login)],
         store,
-        &now,
+        now,
     )?;
     if let Some(email) = github_email {
         update_and_sign_string_field(
             &mut profile.identities.github_primary_email,
             email,
             store,
-            &now,
+            now,
         )?;
     }
     Ok(profile)
@@ -66,20 +66,20 @@ pub fn update_bugzilla(
         &mut profile.identities.bugzilla_mozilla_org_id,
         bugzilla_id,
         store,
-        &now,
+        now,
     )?;
     update_and_sign_string_field(
         &mut profile.identities.bugzilla_mozilla_org_primary_email,
         bugzilla_email.clone(),
         store,
-        &now,
+        now,
     )?;
 
     let mut kv_pairs = vec![(create_usernames_key("BMOMAIL"), bugzilla_email)];
     if let Some(nick) = bugzilla_nick {
         kv_pairs.push((create_usernames_key("BMONICK"), nick));
     }
-    update_and_sign_values_field(&mut profile.usernames, kv_pairs, store, &now)?;
+    update_and_sign_values_field(&mut profile.usernames, kv_pairs, store, now)?;
     Ok(profile)
 }
 
