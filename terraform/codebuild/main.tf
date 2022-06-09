@@ -127,6 +127,15 @@ resource "aws_iam_role_policy" "codebuild" {
         "eks:DescribeCluster"
       ],
       "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:secretsmanager:*:*:secret:/CodeBuild/dockerhub*"
+      ],
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ]
     }
   ]
 }
