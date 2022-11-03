@@ -649,8 +649,8 @@ dependencies = [
 
 [[package]]
 name = "cis_client"
-version = "0.7.1"
-source = "git+https://github.com/mozilla-iam/cis_client-rust?branch=0.7#ba64ba961a746f48666957038198396c72fe6b1b"
+version = "0.7.2"
+source = "git+https://github.com/mozilla-iam/cis_client-rust?tag=0.7.2#7ab2a9bfac5beb101e3433cb85c1ba79b744cec8"
 dependencies = [
  "biscuit",
  "chrono",
@@ -669,8 +669,8 @@ dependencies = [
 
 [[package]]
 name = "cis_profile"
-version = "0.4.4"
-source = "git+https://github.com/mozilla-iam/cis_profile-rust?branch=0.4#8bada35bc119aaf649c011ce7ea6625b28f53a9f"
+version = "0.4.5"
+source = "git+https://github.com/mozilla-iam/cis_profile-rust?tag=0.4.5#501a7a08d86885e6945a0430907376e9a5e81310"
 dependencies = [
  "biscuit",
  "chrono",
@@ -923,7 +923,7 @@ dependencies = [
 
 [[package]]
 name = "dino-park-whoami"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "actix-session",
  "actix-web",
@@ -951,8 +951,8 @@ dependencies = [
 
 [[package]]
 name = "dino_park_gate"
-version = "0.8.3"
-source = "git+https://github.com/mozilla-iam/dino-park-gate?tag=0.8.3#990fc9317f2a6a82b91168ff52da015243fea71d"
+version = "0.8.4"
+source = "git+https://github.com/mozilla-iam/dino-park-gate?tag=0.8.4#0be75bc14730f65f41bb87751d8d890cd3167498"
 dependencies = [
  "actix-service",
  "actix-web",
@@ -976,8 +976,8 @@ dependencies = [
 
 [[package]]
 name = "dino_park_guard"
-version = "0.3.1"
-source = "git+https://github.com/mozilla-iam/dino-park-guard?tag=0.3.1#508fdcff263a19bd876258ed1adb2283325d389a"
+version = "0.3.2"
+source = "git+https://github.com/mozilla-iam/dino-park-guard?tag=0.3.2#3cdeae1ccf1ed428bbe67bde2f538fa629c62238"
 dependencies = [
  "dino_park_gate",
  "dino_park_trust",
@@ -988,8 +988,8 @@ dependencies = [
 
 [[package]]
 name = "dino_park_trust"
-version = "0.0.7"
-source = "git+https://github.com/mozilla-iam/dino-park-trust?tag=0.0.7#db8e281ad28ef02af79c4f68142282974ecf156a"
+version = "0.0.8"
+source = "git+https://github.com/mozilla-iam/dino-park-trust?tag=0.0.8#c055df646a925c8b76c25a58298f0c4a46ebd62c"
 dependencies = [
  "failure",
  "serde 1.0.147",

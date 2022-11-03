@@ -1,6 +1,6 @@
 [package]
 name = "dino-park-whoami"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Florian Merz <me@fiji-flo.de>"]
 edition = "2018"
 
@@ -9,11 +9,11 @@ default = []
 localuserscope = ["dino_park_gate/localuserscope"]
 
 [dependencies]
-cis_client = { git = "https://github.com/mozilla-iam/cis_client-rust", branch = "0.7", version = "0.7", features = ["sync"] }
-cis_profile = { git = "https://github.com/mozilla-iam/cis_profile-rust", branch = "0.4", version = "0.4", features = ["aws", "vendored"] }
-dino_park_gate = { git = "https://github.com/mozilla-iam/dino-park-gate", tag = "0.8.3", version = "0.8.3" }
-dino_park_guard = { git = "https://github.com/mozilla-iam/dino-park-guard", tag = "0.3.1", version = "0.3.1" }
-dino_park_trust = { git = "https://github.com/mozilla-iam/dino-park-trust", tag = "0.0.7", version = "0.0.7" }
+cis_client = { git = "https://github.com/mozilla-iam/cis_client-rust", tag = "0.7.2", version = "0.7.2", features = ["sync"] }
+cis_profile = { git = "https://github.com/mozilla-iam/cis_profile-rust", tag = "0.4.5", version = "0.4.5", features = ["aws", "vendored"] }
+dino_park_gate = { git = "https://github.com/mozilla-iam/dino-park-gate", tag = "0.8.4", version = "0.8.4" }
+dino_park_guard = { git = "https://github.com/mozilla-iam/dino-park-guard", tag = "0.3.2", version = "0.3.2" }
+dino_park_trust = { git = "https://github.com/mozilla-iam/dino-park-trust", tag = "0.0.8", version = "0.0.8" }
 shared-expiry-get = "0.1.0"
 actix-web = "3"
 actix-session = "0.4"
