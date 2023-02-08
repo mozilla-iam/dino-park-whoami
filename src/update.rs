@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
 fn create_usernames_key(typ: &str) -> String {
-    format!("HACK#{}", typ)
+    format!("HACK#{typ}")
 }
 
 pub fn update_github(

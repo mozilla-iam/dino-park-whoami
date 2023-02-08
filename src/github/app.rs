@@ -72,7 +72,7 @@ async fn id_to_username(
         let cache = Arc::clone(&*cache);
         let cache_id = (*id).clone();
         let res = Client::default()
-            .get(&format!("{}/{}", USER_URL, id))
+            .get(&format!("{USER_URL}/{id}"))
             .basic_auth(
                 &github_auth_params.client_id,
                 Some(&github_auth_params.client_secret),
