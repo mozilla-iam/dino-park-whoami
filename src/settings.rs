@@ -39,9 +39,10 @@ pub struct Settings {
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         let file = env::var("DPW_SETTINGS").unwrap_or_else(|_| String::from(".settings"));
-        let mut s = Config::new();
-        s.merge(File::with_name(&file))?;
-        s.merge(Environment::new().separator("__").prefix("dp"))?;
-        s.try_into()
+        Config::builder()
+            .add_source(File::with_name(&file))
+            .add_source(Environment::with_prefix("DP").separator("__"))
+            .build()?
+            .try_deserialize::<Settings>()
     }
 }

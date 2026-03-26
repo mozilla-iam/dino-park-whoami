@@ -7,7 +7,7 @@ use actix_session::Session;
 use actix_web::cookie::SameSite;
 use actix_web::dev::HttpServiceFactory;
 use actix_web::http;
-use actix_web::web;
+use actix_web::web::{self, Data};
 use actix_web::HttpResponse;
 use cis_client::getby::GetBy;
 use cis_client::AsyncCisClientTrait;
@@ -55,10 +55,10 @@ async fn redirect(
         .url();
     info!("settting: {}", csrf_state.secret());
     session
-        .set("csrf_state", csrf_state.secret().clone())
+        .insert("csrf_state", csrf_state.secret().clone())
         .map(|_| {
             HttpResponse::Found()
-                .header(http::header::LOCATION, authorize_url.to_string())
+                .insert_header((http::header::LOCATION, authorize_url.to_string()))
                 .finish()
         })
         .map_err(|_| ApiError::Unknown)
@@ -78,12 +78,12 @@ async fn auth<T: AsyncCisClientTrait + 'static>(
         info!("session: {}", must_state);
         if must_state != state.secret() {
             return Ok(HttpResponse::Found()
-                .header(http::header::LOCATION, "/e?identityAdded=error")
+                .insert_header((http::header::LOCATION, "/e?identityAdded=error"))
                 .finish());
         }
     } else {
         return Ok(HttpResponse::Found()
-            .header(http::header::LOCATION, "/e?identityAdded=error")
+            .insert_header((http::header::LOCATION, "/e?identityAdded=error"))
             .finish());
     }
     // Looks like we get the access_token as code?!
@@ -119,7 +119,7 @@ async fn auth<T: AsyncCisClientTrait + 'static>(
         .update_user(&scope_and_user.user_id, profile)
         .await?;
     Ok(HttpResponse::Found()
-        .header(http::header::LOCATION, "/e?identityAdded=bugzilla")
+        .insert_header((http::header::LOCATION, "/e?identityAdded=bugzilla"))
         .finish())
 }
 
@@ -148,7 +148,7 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
         .set_redirect_url(redirect_url),
     );
 
-    web::scope("/bugzilla/")
+    web::scope("/bugzilla")
         .wrap(
             CookieSession::private(secret)
                 .name("dpw_bz")
@@ -159,9 +159,9 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
                 .secure(true)
                 .max_age(300),
         )
-        .data(client)
-        .data(cis_client)
-        .data(Arc::new(bugzilla.clone()))
+        .app_data(Data::new(client))
+        .app_data(Data::new(cis_client))
+        .app_data(Data::new(Arc::new(bugzilla.clone())))
         .service(web::resource("/add").route(web::get().to(redirect)))
         .service(web::resource("/auth").route(web::get().to(auth::<T>)))
 }

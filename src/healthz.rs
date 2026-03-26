@@ -3,7 +3,7 @@ use actix_web::web;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 
-fn healthz(_: HttpRequest) -> HttpResponse {
+async fn healthz(_: HttpRequest) -> HttpResponse {
     HttpResponse::Ok().finish()
 }
 

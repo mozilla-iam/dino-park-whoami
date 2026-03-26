@@ -7,7 +7,7 @@ use actix_session::Session;
 use actix_web::cookie::SameSite;
 use actix_web::dev::HttpServiceFactory;
 use actix_web::http;
-use actix_web::web;
+use actix_web::web::{self, Data};
 use actix_web::HttpResponse;
 use cis_client::getby::GetBy;
 use cis_client::AsyncCisClientTrait;
@@ -72,7 +72,7 @@ async fn id_to_username(
         let cache = Arc::clone(&*cache);
         let cache_id = (*id).clone();
         let res = Client::default()
-            .get(&format!("{USER_URL}/{id}"))
+            .get(format!("{USER_URL}/{id}"))
             .basic_auth(
                 &github_auth_params.client_id,
                 Some(&github_auth_params.client_secret),
@@ -104,10 +104,10 @@ async fn redirect(
     let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random).url();
     info!("settting: {}", csrf_state.secret());
     session
-        .set("csrf_state", csrf_state.secret().clone())
+        .insert("csrf_state", csrf_state.secret().clone())
         .map(|_| {
             HttpResponse::Found()
-                .header(http::header::LOCATION, authorize_url.to_string())
+                .insert_header((http::header::LOCATION, authorize_url.to_string()))
                 .finish()
         })
         .map_err(|_| ApiError::Unknown)
@@ -128,12 +128,12 @@ async fn auth<T: AsyncCisClientTrait + 'static>(
         info!("session: {}", must_state);
         if must_state != state.secret() {
             return Ok(HttpResponse::Found()
-                .header(http::header::LOCATION, "/e?identityAdded=error")
+                .insert_header((http::header::LOCATION, "/e?identityAdded=error"))
                 .finish());
         }
     } else {
         return Ok(HttpResponse::Found()
-            .header(http::header::LOCATION, "/e?identityAdded=error")
+            .insert_header((http::header::LOCATION, "/e?identityAdded=error"))
             .finish());
     }
     let token_res = client
@@ -167,11 +167,11 @@ async fn auth<T: AsyncCisClientTrait + 'static>(
             .update_user(&scope_and_user.user_id, profile)
             .await?;
         return Ok(HttpResponse::Found()
-            .header(http::header::LOCATION, "/e?identityAdded=github")
+            .insert_header((http::header::LOCATION, "/e?identityAdded=github"))
             .finish());
     }
     Ok(HttpResponse::Found()
-        .header(http::header::LOCATION, "/e?identityAdded=error")
+        .insert_header((http::header::LOCATION, "/e?identityAdded=error"))
         .finish())
 }
 
@@ -199,7 +199,7 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
         .set_redirect_url(redirect_url),
     );
 
-    web::scope("/github/")
+    web::scope("/github")
         .wrap(
             CookieSession::private(secret)
                 .name("dpw_gh")
@@ -210,10 +210,10 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
                 .secure(true)
                 .max_age(300),
         )
-        .data(client)
-        .data(cis_client)
-        .data(ttl_cache)
-        .data(github.clone())
+        .app_data(Data::new(client))
+        .app_data(Data::new(cis_client))
+        .app_data(Data::new(ttl_cache))
+        .app_data(Data::new(github.clone()))
         .service(web::resource("/add").route(web::get().to(redirect)))
         .service(web::resource("/auth").route(web::get().to(auth::<T>)))
         .service(web::resource("/username/{id}").route(web::get().to(id_to_username)))

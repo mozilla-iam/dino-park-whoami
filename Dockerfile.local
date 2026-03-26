@@ -1,9 +1,22 @@
-FROM debian:10-slim
+# This is mostly the same as the regular Dockerfile build, except we cache
+# locally.
+FROM rust:latest
+
+WORKDIR /usr/src/app
+COPY . .
+RUN --mount=type=cache,target=/usr/src/app/target/release/build \
+    --mount=type=cache,target=/usr/src/app/target/release/deps \
+    --mount=type=cache,target=/usr/src/app/target/release/incremental \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo build --release
+
+FROM debian:13-slim
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/
-COPY target/release/dino-park-whoami .
+COPY --from=0 /usr/src/app/target/release/dino-park-whoami .
 CMD ["./dino-park-whoami"]

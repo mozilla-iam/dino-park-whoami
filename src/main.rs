@@ -15,13 +15,12 @@ use dino_park_gate::provider::Provider;
 use dino_park_gate::scope::ScopeAndUserAuth;
 use log::info;
 use std::io::Error;
-use std::io::ErrorKind;
 use std::sync::Arc;
 use std::sync::RwLock;
 use ttl_cache::TtlCache;
 
 fn map_io_err(e: impl Into<failure::Error>) -> Error {
-    Error::new(ErrorKind::Other, e.into())
+    Error::other(e.into())
 }
 
 #[actix_web::main]
@@ -43,7 +42,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default().exclude("/healthz"))
             .service(
-                web::scope("/whoami/")
+                web::scope("/whoami")
                     .wrap(scope_middleware)
                     .service(github_app(
                         &s.providers.github,
