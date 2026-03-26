@@ -103,7 +103,7 @@ fn update_and_sign_values_field(
     }
     field.metadata.last_modified = *now;
     field.signature.publisher.name = PublisherAuthority::Mozilliansorg;
-    store.sign_attribute(field)
+    Ok(store.sign_attribute(field)?)
 }
 
 fn update_and_sign_string_field(
@@ -118,5 +118,5 @@ fn update_and_sign_string_field(
     }
     field.metadata.last_modified = *now;
     field.signature.publisher.name = PublisherAuthority::Mozilliansorg;
-    store.sign_attribute(field)
+    Ok(store.sign_attribute(field)?)
 }

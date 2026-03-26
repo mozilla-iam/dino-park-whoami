@@ -43,7 +43,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default().exclude("/healthz"))
             .service(
-                web::scope("/whoami/")
+                web::scope("/whoami")
                     .wrap(scope_middleware)
                     .service(github_app(
                         &s.providers.github,
