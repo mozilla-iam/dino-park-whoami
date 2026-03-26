@@ -1,0 +1,21 @@
+# This is used for local development only.
+
+services:
+  whoami:
+    image: dino-park-whoami:development
+    build:
+      context: ../
+      dockerfile: Dockerfile.local
+    environment:
+      DPW_SETTINGS: /root/.settings.json
+      RUST_BACKTRACE: "1"
+    volumes:
+    - ../dev/settings.json:/root/.settings.json
+    ports:
+    - 127.0.0.1:8084:8084
+    develop:
+      watch:
+        - path: ../src
+          action: rebuild
+        - path: ../Cargo.lock
+          action: rebuild

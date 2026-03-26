@@ -1,0 +1,54 @@
+{
+  "comment": [
+    "DEBT: The config parser expects all keys to be defined. It does not use",
+    "the fallback to using the default values on `None`. This comment section",
+    "is also a hack.",
+    "See also:",
+    "* src/settings.rs;",
+    "* the `config` dependency."
+  ],
+  "auth": "https://dev.mozilla-dev.auth0.com/",
+  "cis": {
+    "client_config": {
+      "client_id": "",
+      "client_secret": "",
+      "audience": "",
+      "token_endpoint": "https://idp",
+      "scopes": "read:fullprofile display:all"
+    },
+    "sign_keys": {
+      "source": "none"
+    },
+    "verify_keys": {
+      "source": "none"
+    },
+    "change_api_user_endpoint": "https://change-api.cis",
+    "change_api_users_endpoint": "https://change-api.cis",
+    "person_api_user_endpoint": "https://person-api.cis",
+    "person_api_users_endpoint": "https://person-api.cis"
+  },
+  "providers": {
+    "github": {
+      "client_id": "",
+      "client_secret": ""
+    },
+    "bugzilla": {
+      "client_id": "",
+      "client_secret": "",
+      "base_url": "https://bugzilla-dev.allizom.org"
+    },
+    "slack": {
+      "client_id": "",
+      "client_secret": "",
+      "identity_redirect_uri": "http://dinopark/whoami/slack/auth/identity",
+      "im_redirect_uri": "http://dinopark/whoami/slack/auth/im",
+      "identity_scope": "identity.basic,identity.avatar,identity.email",
+      "im_scope": "im:write,bot",
+      "direct_message_uri": "https://mozilla.slack.com/messages/"
+    }
+  },
+  "whoami": {
+    "domain": "localhost",
+    "secret": "1234567812345678deadbeefcafebabe1234567812345678"
+  }
+}
