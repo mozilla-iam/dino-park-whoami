@@ -1,3 +1,11 @@
+// DEBT: A warning for `ApiError`. `failure` is unmaintained, and I think we
+// should move to using `thiserror`.
+// Quoting the lint:
+//
+//  warning: non-local `impl` definition, `impl` blocks should be written
+//  at the same level as their item
+#![allow(non_local_definitions)]
+
 use actix_web::error::ResponseError;
 use actix_web::HttpResponse;
 use cis_client::error::CisClientError;
