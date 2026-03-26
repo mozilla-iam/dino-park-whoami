@@ -1,5 +1,6 @@
 use actix_web::error::ResponseError;
 use actix_web::HttpResponse;
+use cis_client::error::CisClientError;
 use dino_park_trust::GroupsTrustError;
 use dino_park_trust::TrustError;
 use failure::Fail;
@@ -18,6 +19,8 @@ pub enum ApiError {
     ScopeError(TrustError),
     #[fail(display = "Groups scope Error: {}", _0)]
     GroupsScopeError(GroupsTrustError),
+    #[fail(display = "CIS client error: {}", _0)]
+    CisClient(CisClientError),
 }
 
 fn to_json_error(e: &impl Display) -> Value {
@@ -39,6 +42,12 @@ impl From<GroupsTrustError> for ApiError {
 impl From<failure::Error> for ApiError {
     fn from(e: failure::Error) -> Self {
         ApiError::GenericBadRequest(e)
+    }
+}
+
+impl From<CisClientError> for ApiError {
+    fn from(e: CisClientError) -> Self {
+        ApiError::CisClient(e)
     }
 }
 
