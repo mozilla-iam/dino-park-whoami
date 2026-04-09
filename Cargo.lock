@@ -815,7 +815,7 @@ dependencies = [
 
 [[package]]
 name = "dino-park-whoami"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "actix-session",
  "actix-web",
