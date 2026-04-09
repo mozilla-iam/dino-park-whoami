@@ -17,7 +17,6 @@ use failure::Error;
 use log::info;
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
-use oauth2::AsyncCodeTokenRequest;
 use oauth2::AuthUrl;
 use oauth2::AuthorizationCode;
 use oauth2::ClientId;
@@ -196,7 +195,7 @@ pub fn github_app<T: AsyncCisClientTrait + 'static>(
             auth_url,
             Some(token_url),
         )
-        .set_redirect_url(redirect_url),
+        .set_redirect_uri(redirect_url),
     );
 
     web::scope("/github")

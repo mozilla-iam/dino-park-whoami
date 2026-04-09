@@ -145,7 +145,7 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
             auth_url,
             Some(token_url),
         )
-        .set_redirect_url(redirect_url),
+        .set_redirect_uri(redirect_url),
     );
 
     web::scope("/bugzilla")

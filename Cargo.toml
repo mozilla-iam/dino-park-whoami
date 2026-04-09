@@ -18,7 +18,7 @@ shared-expiry-get = "0.1.0"
 actix-web = "4.10.2"
 actix-session = "0.5"
 futures = "0.3"
-oauth2 = { version = "3", features = ["futures-03", "reqwest-010"], default-features = false }
+oauth2 = { version = "4.4.2" }
 url = "2.1"
 base64 = "0.12"
 rand = "0.7"
