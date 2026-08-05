@@ -131,9 +131,9 @@ pub fn bugzilla_app<T: AsyncCisClientTrait + 'static>(
 ) -> impl HttpServiceFactory {
     let bugzilla_client_id = ClientId::new(bugzilla.client_id.clone());
     let bugzilla_client_secret = ClientSecret::new(bugzilla.client_secret.clone());
-    let auth_url = AuthUrl::new(format!("{}{}", &bugzilla.base_url, AUTH_PATH))
+    let auth_url = AuthUrl::new(format!("{}{}", bugzilla.base_url, AUTH_PATH))
         .expect("Invalid authorization endpoint URL");
-    let token_url = TokenUrl::new(format!("{}{}", &bugzilla.base_url, TOKEN_PATH))
+    let token_url = TokenUrl::new(format!("{}{}", bugzilla.base_url, TOKEN_PATH))
         .expect("Invalid token endpoint URL");
     let redirect_url = RedirectUrl::new(format!("https://{}/whoami/bugzilla/auth", whoami.domain))
         .expect("Invalid redirect URL");
